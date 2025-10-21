@@ -1,0 +1,5 @@
+# Ignore distribution files
+dist/
+
+# Ignore Claude files
+**/*.claude*
