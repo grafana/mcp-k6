@@ -72,9 +72,4 @@ func createK6Stub(t *testing.T, dir string) {
 		t.Fatalf("failed to write k6 stub: %v", err)
 	}
 
-	if runtime.GOOS != "windows" {
-		if err := os.Chmod(path, 0o700); err != nil {
-			t.Fatalf("failed to chmod k6 stub: %v", err)
-		}
-	}
 }
