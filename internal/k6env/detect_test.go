@@ -79,12 +79,6 @@ func createStub(t *testing.T, dir, content string) string {
 		t.Fatalf("failed to write stub executable: %v", err)
 	}
 
-	if runtime.GOOS != "windows" {
-		if err := os.Chmod(path, 0o700); err != nil {
-			t.Fatalf("failed to chmod stub executable: %v", err)
-		}
-	}
-
 	return path
 }
 
