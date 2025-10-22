@@ -1,0 +1,30 @@
+name: Go Security
+
+on:
+  workflow_call:
+  push:
+    branches:
+      - master
+  pull_request:
+    branches:
+      - master
+
+permissions:
+  contents: read
+
+jobs:
+  tests:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout Source
+        uses: actions/checkout@v5
+        with:
+          persist-credentials: false
+
+      - name: Run Gosec Security Scanner
+        uses: securego/gosec@6be2b51fd78feca86af91f5186b7964d76cb1256 # v2.22.10
+        with:
+          args: ./...
+
+      - name: Run Go Vulnerability Scanner
+        uses: golang/govulncheck-action@b625fbe08f3bccbe446d94fbf87fcc875a4f50ee # v1
