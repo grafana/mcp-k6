@@ -30,10 +30,7 @@ var serveStdio = server.ServeStdio
 
 func main() {
 	logger := logging.Default()
-	exitCode := run(context.Background(), logger, os.Stderr)
-	if exitCode != 0 {
-		os.Exit(exitCode)
-	}
+	os.Exit(run(context.Background(), logger, os.Stderr))
 }
 
 func run(ctx context.Context, logger *slog.Logger, stderr io.Writer) int {
