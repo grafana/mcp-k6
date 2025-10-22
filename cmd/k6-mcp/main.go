@@ -7,7 +7,9 @@ import (
 	"context"
 	"database/sql"
 	_ "embed"
+	"errors"
 	"fmt"
+	"io"
 	"io/fs"
 	"log/slog"
 	"os"
@@ -20,12 +22,18 @@ import (
 	"github.com/grafana/k6-mcp/internal"
 	"github.com/grafana/k6-mcp/internal/buildinfo"
 	"github.com/grafana/k6-mcp/internal/handlers"
+	"github.com/grafana/k6-mcp/internal/k6env"
 	"github.com/grafana/k6-mcp/internal/logging"
 )
 
+var serveStdio = server.ServeStdio
+
 func main() {
 	logger := logging.Default()
+	os.Exit(run(context.Background(), logger, os.Stderr))
+}
 
+func run(ctx context.Context, logger *slog.Logger, stderr io.Writer) int {
 	logger.Info("Starting k6 MCP server",
 		slog.String("version", buildinfo.Version),
 		slog.String("commit", buildinfo.Commit),
@@ -33,11 +41,19 @@ func main() {
 		slog.Bool("resource_capabilities", true),
 	)
 
+	k6Info, err := k6env.Locate(ctx)
+	if err != nil {
+		return handleK6LookupError(logger, stderr, err)
+	}
+
+	logger.Info("Detected k6 executable", slog.String("path", k6Info.Path))
+
 	// Open the embedded database SQLite file
 	db, dbFile, err := openDB(k6mcp.EmbeddedDB)
 	if err != nil {
 		logger.Error("Error opening database", "error", err)
-		panic(err)
+		fmt.Fprintf(stderr, "Failed to open embedded database: %v\n", err)
+		return 1
 	}
 	defer closeDB(logger, db)
 	defer removeDBFile(logger, dbFile)
@@ -64,10 +80,26 @@ func main() {
 	registerGenerateScriptPrompt(s, handlers.WithPromptMiddleware("generate_k6_script", handlers.NewScriptGenerator()))
 
 	logger.Info("Starting MCP server on stdio")
-	if err := server.ServeStdio(s); err != nil {
+	if err := serveStdio(s); err != nil {
 		logger.Error("Server error", slog.String("error", err.Error()))
-		return
+		fmt.Fprintf(stderr, "MCP server exited with error: %v\n", err)
+		return 1
 	}
+
+	return 0
+}
+
+func handleK6LookupError(logger *slog.Logger, stderr io.Writer, err error) int {
+	if errors.Is(err, k6env.ErrNotFound) {
+		message := "k6-mcp requires the `k6` executable on your PATH. Install k6 (https://grafana.com/docs/k6/latest/get-started/installation/) and ensure it is accessible before retrying."
+		logger.Error("k6 executable not found on PATH", slog.String("hint", message))
+		fmt.Fprintln(stderr, message)
+	} else {
+		logger.Error("Failed to locate k6 executable", slog.String("error", err.Error()))
+		fmt.Fprintf(stderr, "Failed to locate k6 executable: %v\n", err)
+	}
+
+	return 1
 }
 
 func registerValidationTool(s *server.MCPServer, h handlers.ToolHandler) {
