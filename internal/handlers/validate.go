@@ -1,3 +1,4 @@
+// Package handlers contains MCP request handlers including validation endpoints.
 package handlers
 
 import (

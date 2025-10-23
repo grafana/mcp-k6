@@ -38,24 +38,35 @@ func (h *FullTextSearchHandler) Handle(ctx context.Context, request mcp.CallTool
 	logging.RequestStart(ctx, "search", args)
 
 	// Extract query from arguments
+	const searchGuidance = "Search for development workflow help: '\"script validation\"', " +
+		"'\"threshold setup\"', '\"HTTP patterns\"'. For troubleshooting: '\"debugging errors\"', " +
+		"'\"common issues\"'. For learning: '\"getting started\"', '\"examples\"', '\"best practices\"'."
+
 	queryValue, exists := args["keywords"]
 	if !exists {
 		err := fmt.Errorf("missing required parameter: keywords")
 		logging.RequestEnd(ctx, "search", false, time.Since(startTime), err)
-		return mcp.NewToolResultError("Missing required parameter 'keywords'. Search for development workflow help: '\"script validation\"', '\"threshold setup\"', '\"HTTP patterns\"'. For troubleshooting: '\"debugging errors\"', '\"common issues\"'. For learning: '\"getting started\"', '\"examples\"', '\"best practices\"'."), nil
+		return mcp.NewToolResultError(
+			"Missing required parameter 'keywords'. " + searchGuidance,
+		), nil
 	}
 
 	query, ok := queryValue.(string)
 	if !ok {
 		err := fmt.Errorf("keywords parameter must be a string")
 		logging.RequestEnd(ctx, "search", false, time.Since(startTime), err)
-		return mcp.NewToolResultError("Parameter 'keywords' must be a string containing your search terms. Multi-word queries should be quoted. Received: " + fmt.Sprintf("%T", queryValue)), nil
+		return mcp.NewToolResultError(
+			"Parameter 'keywords' must be a string containing your search terms. " +
+				"Multi-word queries should be quoted. Received: " + fmt.Sprintf("%T", queryValue),
+		), nil
 	}
 
 	if query == "" {
 		err := fmt.Errorf("keywords parameter cannot be empty")
 		logging.RequestEnd(ctx, "search", false, time.Since(startTime), err)
-		return mcp.NewToolResultError("Keywords parameter cannot be empty. Search for development workflow help: '\"script validation\"', '\"threshold setup\"', '\"HTTP patterns\"'. For troubleshooting: '\"debugging errors\"', '\"common issues\"'. For learning: '\"getting started\"', '\"examples\"', '\"best practices\"'."), nil
+		return mcp.NewToolResultError(
+			"Keywords parameter cannot be empty. " + searchGuidance,
+		), nil
 	}
 
 	// Parse search options
@@ -72,7 +83,10 @@ func (h *FullTextSearchHandler) Handle(ctx context.Context, request mcp.CallTool
 		} else {
 			err := fmt.Errorf("max_results must be a number")
 			logging.RequestEnd(ctx, "search", false, time.Since(startTime), err)
-			return mcp.NewToolResultError("Parameter 'max_results' must be a number between 1 and 20. Received: " + fmt.Sprintf("%T", maxResultsValue)), nil
+			return mcp.NewToolResultError(
+				"Parameter 'max_results' must be a number between 1 and 20. Received: " +
+					fmt.Sprintf("%T", maxResultsValue),
+			), nil
 		}
 	}
 

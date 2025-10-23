@@ -75,8 +75,14 @@ func createStub(t *testing.T, dir, content string) string {
 	}
 
 	path := filepath.Join(dir, filename)
-	if err := os.WriteFile(path, []byte(content), 0o700); err != nil {
+	//nolint:forbidigo // Test helper requires writing stub executable
+	if err := os.WriteFile(path, []byte(content), 0o600); err != nil {
 		t.Fatalf("failed to write stub executable: %v", err)
+	}
+	//nolint:forbidigo // Adjust permissions for executable stub
+	// #nosec G302 -- Stub executable must be runnable during tests
+	if err := os.Chmod(path, 0o700); err != nil {
+		t.Fatalf("failed to set stub executable permissions: %v", err)
 	}
 
 	return path

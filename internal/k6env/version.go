@@ -15,6 +15,7 @@ func (i Info) Version(ctx context.Context) (string, error) {
 		return "", errors.New("k6 executable path is empty")
 	}
 
+	// #nosec G204 -- i.Path is obtained from Locate and points to a trusted executable
 	cmd := exec.CommandContext(ctx, i.Path, "version")
 	output, err := cmd.Output()
 	if err != nil {

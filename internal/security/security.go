@@ -48,8 +48,9 @@ func ValidateScriptContent(ctx context.Context, content string) error {
 
 	if len(content) == 0 {
 		err := &Error{
-			Type:    "EMPTY_CONTENT",
-			Message: "script content cannot be empty. Try a basic k6 script: import http from 'k6/http'; export default function() { http.get('https://httpbin.org/get'); }",
+			Type: "EMPTY_CONTENT",
+			Message: "script content cannot be empty. Try a basic k6 script: " +
+				"import http from 'k6/http'; export default function() { http.get('https://httpbin.org/get'); }",
 		}
 
 		logging.SecurityEvent(ctx, "empty_content", "medium",
@@ -218,36 +219,93 @@ func generateContentOptimizationSuggestions(content string) []string {
 	return suggestions
 }
 
+func dangerousPatternCatalog() map[string]PatternInfo {
+	return map[string]PatternInfo{
+		"require('child_process')": {
+			Description: "child process execution",
+			Suggestion:  "Use k6's built-in HTTP module for external requests",
+		},
+		"require(\"child_process\")": {
+			Description: "child process execution",
+			Suggestion:  "Use k6's built-in HTTP module for external requests",
+		},
+		"require('fs')": {
+			Description: "file system access",
+			Suggestion:  "Use k6's data loading features or environment variables",
+		},
+		"require(\"fs\")": {
+			Description: "file system access",
+			Suggestion:  "Use k6's data loading features or environment variables",
+		},
+		"require('os')": {
+			Description: "operating system access",
+			Suggestion:  "Use k6's environment variable access instead",
+		},
+		"require(\"os\")": {
+			Description: "operating system access",
+			Suggestion:  "Use k6's environment variable access instead",
+		},
+		"require('process')": {
+			Description: "process manipulation",
+			Suggestion:  "Use k6's VU context and built-in functions",
+		},
+		"require(\"process\")": {
+			Description: "process manipulation",
+			Suggestion:  "Use k6's VU context and built-in functions",
+		},
+		"exec(": {
+			Description: "command execution",
+			Suggestion:  "Replace with k6 HTTP requests or built-in functions",
+		},
+		"execSync(": {
+			Description: "synchronous command execution",
+			Suggestion:  "Replace with k6 HTTP requests or built-in functions",
+		},
+		"spawn(": {
+			Description: "process spawning",
+			Suggestion:  "Use k6's HTTP module for external communication",
+		},
+		"fork(": {
+			Description: "process forking",
+			Suggestion:  "Use k6's scenarios for concurrent testing",
+		},
+		"execFile(": {
+			Description: "file execution",
+			Suggestion:  "Replace with k6 built-in functionality",
+		},
+		"eval(": {
+			Description: "code evaluation",
+			Suggestion:  "Avoid dynamic code execution in k6 scripts",
+		},
+		"Function(": {
+			Description: "dynamic function creation",
+			Suggestion:  "Use static function definitions in k6",
+		},
+		"new Function(": {
+			Description: "dynamic function creation",
+			Suggestion:  "Use static function definitions in k6",
+		},
+		"import(": {
+			Description: "dynamic import",
+			Suggestion:  "Use static import statements at the top of your script",
+		},
+	}
+}
+
 // checkDangerousPatternsWithSuggestions scans for dangerous patterns and provides corrections
 func checkDangerousPatternsWithSuggestions(ctx context.Context, content string) error {
-	// Enhanced patterns with specific suggestions
-	dangerousPatterns := map[string]PatternInfo{
-		"require('child_process')":   {Description: "child process execution", Suggestion: "Use k6's built-in HTTP module for external requests"},
-		"require(\"child_process\")": {Description: "child process execution", Suggestion: "Use k6's built-in HTTP module for external requests"},
-		"require('fs')":              {Description: "file system access", Suggestion: "Use k6's data loading features or environment variables"},
-		"require(\"fs\")":            {Description: "file system access", Suggestion: "Use k6's data loading features or environment variables"},
-		"require('os')":              {Description: "operating system access", Suggestion: "Use k6's environment variable access instead"},
-		"require(\"os\")":            {Description: "operating system access", Suggestion: "Use k6's environment variable access instead"},
-		"require('process')":         {Description: "process manipulation", Suggestion: "Use k6's VU context and built-in functions"},
-		"require(\"process\")":       {Description: "process manipulation", Suggestion: "Use k6's VU context and built-in functions"},
-		"exec(":                      {Description: "command execution", Suggestion: "Replace with k6 HTTP requests or built-in functions"},
-		"execSync(":                  {Description: "synchronous command execution", Suggestion: "Replace with k6 HTTP requests or built-in functions"},
-		"spawn(":                     {Description: "process spawning", Suggestion: "Use k6's HTTP module for external communication"},
-		"fork(":                      {Description: "process forking", Suggestion: "Use k6's scenarios for concurrent testing"},
-		"execFile(":                  {Description: "file execution", Suggestion: "Replace with k6 built-in functionality"},
-		"eval(":                      {Description: "code evaluation", Suggestion: "Avoid dynamic code execution in k6 scripts"},
-		"Function(":                  {Description: "dynamic function creation", Suggestion: "Use static function definitions in k6"},
-		"new Function(":              {Description: "dynamic function creation", Suggestion: "Use static function definitions in k6"},
-		"import(":                    {Description: "dynamic import", Suggestion: "Use static import statements at the top of your script"},
-	}
-
 	contentLower := strings.ToLower(content)
 
-	for pattern, info := range dangerousPatterns {
+	for pattern, info := range dangerousPatternCatalog() {
 		if strings.Contains(contentLower, strings.ToLower(pattern)) {
 			err := &Error{
-				Type:    "DANGEROUS_PATTERN",
-				Message: fmt.Sprintf("Script contains potentially dangerous pattern related to %s: %s. %s", info.Description, pattern, info.Suggestion),
+				Type: "DANGEROUS_PATTERN",
+				Message: fmt.Sprintf(
+					"Script contains potentially dangerous pattern related to %s: %s. %s",
+					info.Description,
+					pattern,
+					info.Suggestion,
+				),
 			}
 
 			logging.SecurityEvent(ctx, "dangerous_pattern_detected", "critical",
