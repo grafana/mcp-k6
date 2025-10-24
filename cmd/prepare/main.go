@@ -25,7 +25,7 @@ import (
 )
 
 const (
-	dirPermissions    = 0o750
+	dirPermissions    = 0o700
 	gitCommandTimeout = 5 * time.Minute
 )
 
