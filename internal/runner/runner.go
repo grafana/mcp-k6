@@ -532,7 +532,7 @@ func buildK6Args(scriptPath string, options *RunOptions) []string {
 
 // buildStagesString creates a stages configuration string for k6.
 func buildStagesString(stages []Stage) string {
-	var stageStrings []string
+	stageStrings := make([]string, 0, len(stages))
 	for _, stage := range stages {
 		stageStr := fmt.Sprintf("%s:%d", stage.Duration, stage.Target)
 		stageStrings = append(stageStrings, stageStr)
@@ -604,27 +604,28 @@ func extractSummaryFromMetrics(jsonMetrics []map[string]interface{}) TestSummary
 	// Count HTTP requests and calculate statistics
 	httpReqs := 0
 	httpFailures := 0
-	var responseTimes []float64
+	responseTimes := make([]float64, 0, len(jsonMetrics))
 
 	for _, metric := range jsonMetrics {
-		if metricType, ok := metric["type"].(string); ok && metricType == "Point" {
-			if metricName, ok := metric["metric"].(string); ok {
-				switch metricName {
-				case "http_reqs":
-					httpReqs++
-				case "http_req_failed":
-					if value, ok := metric["data"].(map[string]interface{}); ok {
-						if failed, ok := value["value"].(float64); ok && failed > 0 {
-							httpFailures++
-						}
-					}
-				case "http_req_duration":
-					if value, ok := metric["data"].(map[string]interface{}); ok {
-						if duration, ok := value["value"].(float64); ok {
-							responseTimes = append(responseTimes, duration)
-						}
-					}
-				}
+		if !isPointMetric(metric) {
+			continue
+		}
+
+		name, ok := metric["metric"].(string)
+		if !ok {
+			continue
+		}
+
+		switch name {
+		case "http_reqs":
+			httpReqs++
+		case "http_req_failed":
+			if value := extractMetricValue(metric); value > 0 {
+				httpFailures++
+			}
+		case "http_req_duration":
+			if duration := extractMetricValue(metric); duration > 0 {
+				responseTimes = append(responseTimes, duration)
 			}
 		}
 	}
@@ -639,6 +640,21 @@ func extractSummaryFromMetrics(jsonMetrics []map[string]interface{}) TestSummary
 	}
 
 	return summary
+}
+
+func isPointMetric(metric map[string]interface{}) bool {
+	metricType, ok := metric["type"].(string)
+	return ok && metricType == "Point"
+}
+
+func extractMetricValue(metric map[string]interface{}) float64 {
+	data, ok := metric["data"].(map[string]interface{})
+	if !ok {
+		return 0
+	}
+
+	value, _ := data["value"].(float64)
+	return value
 }
 
 // calculateAverage calculates the average of a slice of float64 values.
@@ -685,11 +701,12 @@ func sanitizeRunOptions(options *RunOptions) interface{} {
 
 // getPathType returns a safe representation of file paths for logging
 func getPathType(path string) string {
-	if strings.Contains(path, "temp") || strings.Contains(path, "tmp") {
+	switch {
+	case strings.Contains(path, "temp"), strings.Contains(path, "tmp"):
 		return "temporary"
-	} else if strings.HasSuffix(path, ".js") {
+	case strings.HasSuffix(path, ".js"):
 		return "javascript"
-	} else if strings.HasSuffix(path, ".ts") {
+	case strings.HasSuffix(path, ".ts"):
 		return "typescript"
 	}
 	return "other"
@@ -752,7 +769,11 @@ func analyzePerformance(result *RunResult) PerformanceInsights {
 	insights.ErrorRate = analyzeErrorRate(errorRate)
 
 	// Calculate overall grade
-	insights.OverallGrade = calculateOverallGrade(insights.ResponseTime.Grade, insights.Throughput.Grade, insights.ErrorRate.Grade)
+	insights.OverallGrade = calculateOverallGrade(
+		insights.ResponseTime.Grade,
+		insights.Throughput.Grade,
+		insights.ErrorRate.Grade,
+	)
 
 	// Generate performance recommendations
 	insights.Recommendations = generatePerformanceRecommendations(insights)
@@ -920,34 +941,34 @@ func generateTestAnalysis(result *RunResult) TestAnalysis {
 
 	// Calculate success rate
 	if result.Summary.TotalRequests > 0 {
-		analysis.SuccessRate = float64(result.Summary.TotalRequests-result.Summary.FailedRequests) / float64(result.Summary.TotalRequests) * 100
+		successfulRequests := result.Summary.TotalRequests - result.Summary.FailedRequests
+		analysis.SuccessRate = float64(successfulRequests) / float64(result.Summary.TotalRequests) * 100
 	} else {
 		analysis.SuccessRate = 0
 	}
 
 	// Determine status and grade
-	if result.Success && result.ExitCode == 0 {
-		if analysis.SuccessRate == 100 && result.Performance.OverallGrade >= "B" {
-			analysis.Status = "success"
-			analysis.Grade = result.Performance.OverallGrade
-			analysis.Description = "Test completed successfully with good performance"
-			analysis.Severity = "none"
-		} else if analysis.SuccessRate >= 95 {
-			analysis.Status = "warning"
-			analysis.Grade = result.Performance.OverallGrade
-			analysis.Description = "Test completed with minor issues"
-			analysis.Severity = "low"
-		} else {
-			analysis.Status = "warning"
-			analysis.Grade = "D"
-			analysis.Description = "Test completed but with significant issues"
-			analysis.Severity = "medium"
-		}
-	} else {
+	switch {
+	case !result.Success || result.ExitCode != 0:
 		analysis.Status = "failed"
 		analysis.Grade = "F"
 		analysis.Description = "Test execution failed"
 		analysis.Severity = "critical"
+	case analysis.SuccessRate == 100 && result.Performance.OverallGrade >= "B":
+		analysis.Status = "success"
+		analysis.Grade = result.Performance.OverallGrade
+		analysis.Description = "Test completed successfully with good performance"
+		analysis.Severity = "none"
+	case analysis.SuccessRate >= 95:
+		analysis.Status = "warning"
+		analysis.Grade = result.Performance.OverallGrade
+		analysis.Description = "Test completed with minor issues"
+		analysis.Severity = "low"
+	default:
+		analysis.Status = "warning"
+		analysis.Grade = "D"
+		analysis.Description = "Test completed but with significant issues"
+		analysis.Severity = "medium"
 	}
 
 	return analysis
@@ -1153,7 +1174,8 @@ func generateOptimizations(insights PerformanceInsights) []OptimizationSuggestio
 func generateRunNextSteps(result *RunResult) []string {
 	var steps []string
 
-	if result.Success && result.Analysis.Grade >= "B" {
+	switch {
+	case result.Success && result.Analysis.Grade >= "B":
 		steps = append(steps, "Great results! Your application performed well under load")
 
 		if len(result.Issues) > 0 {
@@ -1164,7 +1186,7 @@ func generateRunNextSteps(result *RunResult) []string {
 			"Consider increasing load to find your system's limits",
 			"Add more complex scenarios to your test script",
 		)
-	} else if result.Success {
+	case result.Success:
 		steps = append(steps, "Test completed but found performance issues to address")
 
 		if result.Analysis.Grade <= "D" {
@@ -1175,7 +1197,7 @@ func generateRunNextSteps(result *RunResult) []string {
 			"Review the performance insights and optimization suggestions",
 			"Use the 'search' tool for specific optimization techniques",
 		)
-	} else {
+	default:
 		steps = append(steps, "Fix test execution issues before analyzing performance")
 
 		if result.ExitCode != 0 {
@@ -1213,7 +1235,8 @@ func addRunWorkflowIntegrationSuggestions(result *RunResult, options *RunOptions
 	}
 
 	// Add workflow suggestions based on run results
-	if result.Success && result.Analysis.Grade >= "B" {
+	switch {
+	case result.Success && result.Analysis.Grade >= "B":
 		// Successful run with good performance
 		workflowSuggestions := []string{
 			"🎉 Excellent test results! Your application performed well",
@@ -1233,7 +1256,7 @@ func addRunWorkflowIntegrationSuggestions(result *RunResult, options *RunOptions
 			"Explore browser testing for frontend performance validation",
 		}
 		result.Recommendations = append(result.Recommendations, advancedRecommendations...)
-	} else if result.Success && result.Analysis.Grade >= "C" {
+	case result.Success && result.Analysis.Grade >= "C":
 		// Successful run with moderate performance
 		workflowSuggestions := []string{
 			"✓ Test completed successfully with moderate performance",
@@ -1244,7 +1267,7 @@ func addRunWorkflowIntegrationSuggestions(result *RunResult, options *RunOptions
 		}
 
 		result.NextSteps = append(workflowSuggestions, result.NextSteps...)
-	} else if result.Success {
+	case result.Success:
 		// Successful run but poor performance
 		workflowSuggestions := []string{
 			"⚠ Test completed but revealed significant performance issues",
@@ -1255,7 +1278,7 @@ func addRunWorkflowIntegrationSuggestions(result *RunResult, options *RunOptions
 		}
 
 		result.NextSteps = append(workflowSuggestions, result.NextSteps...)
-	} else {
+	default:
 		// Failed run
 		workflowSuggestions := []string{
 			"❌ Test execution failed - troubleshooting workflow:",

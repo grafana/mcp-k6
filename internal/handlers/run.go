@@ -217,45 +217,47 @@ func suggestParameterImprovements(args map[string]interface{}) []string {
 	var suggestions []string
 
 	// Check for common parameter issues
-	if vus, hasVUs := args["vus"].(float64); hasVUs {
-		if duration, hasDuration := args["duration"].(string); hasDuration {
-			vusCount := int(vus)
+	vusValue, hasVUs := args["vus"].(float64)
+	if !hasVUs {
+		return suggestions
+	}
 
-			// Suggest improvements for VU/duration combinations
-			if vusCount == 1 && duration == "30s" {
-				suggestions = append(suggestions,
-					"Consider increasing VUs to 5-10 for more realistic load testing",
-					"Try extending duration to 2-5 minutes for better insights",
-				)
-			}
+	vusCount := int(vusValue)
 
-			if vusCount > 20 && duration == "30s" {
-				suggestions = append(suggestions,
-					"With high VU count, consider longer duration (5-10 minutes) for stability",
-				)
-			}
+	if duration, hasDuration := args["duration"].(string); hasDuration {
+		// Suggest improvements for VU/duration combinations
+		if vusCount == 1 && duration == "30s" {
+			suggestions = append(suggestions,
+				"Consider increasing VUs to 5-10 for more realistic load testing",
+				"Try extending duration to 2-5 minutes for better insights",
+			)
 		}
 
-		if iterations, hasIterations := args["iterations"].(float64); hasIterations {
-			iterationCount := int(iterations)
-			vusCount := int(vus)
+		if vusCount > 20 && duration == "30s" {
+			suggestions = append(suggestions,
+				"With high VU count, consider longer duration (5-10 minutes) for stability",
+			)
+		}
+	}
 
-			// Check for inefficient VU/iteration combinations
-			if iterationCount < vusCount {
-				suggestions = append(suggestions,
-					fmt.Sprintf(
-						"You have more VUs (%d) than iterations (%d). "+
-							"Consider increasing iterations or reducing VUs",
-						vusCount, iterationCount,
-					),
-				)
-			}
+	if iterationsValue, hasIterations := args["iterations"].(float64); hasIterations {
+		iterationCount := int(iterationsValue)
 
-			if iterationCount > vusCount*100 {
-				suggestions = append(suggestions,
-					"Very high iteration count per VU. Consider using duration-based testing instead",
-				)
-			}
+		// Check for inefficient VU/iteration combinations
+		if iterationCount < vusCount {
+			suggestions = append(suggestions,
+				fmt.Sprintf(
+					"You have more VUs (%d) than iterations (%d). "+
+						"Consider increasing iterations or reducing VUs",
+					vusCount, iterationCount,
+				),
+			)
+		}
+
+		if iterationCount > vusCount*100 {
+			suggestions = append(suggestions,
+				"Very high iteration count per VU. Consider using duration-based testing instead",
+			)
 		}
 	}
 

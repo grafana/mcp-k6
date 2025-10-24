@@ -1,9 +1,12 @@
 // Package main provides a unified command for preparing the k6-mcp server
 // by performing documentation indexing and type definitions collection.
+//
+//nolint:forbidigo
 package main
 
 import (
 	"bytes"
+	"context"
 	"flag"
 	"fmt"
 	"io/fs"
@@ -15,13 +18,15 @@ import (
 	"sort"
 	"strconv"
 	"strings"
+	"time"
 
 	"github.com/grafana/k6-mcp/internal"
 	"github.com/grafana/k6-mcp/internal/search"
 )
 
 const (
-	dirPermissions = 0o750
+	dirPermissions    = 0o700
+	gitCommandTimeout = 5 * time.Minute
 )
 
 func main() {
@@ -157,7 +162,10 @@ func runCollector(workDir string) error {
 
 // cloneRepository clones a git repository to the target directory
 func cloneRepository(repoURL, targetDir string) error {
-	cmd := exec.Command("git", "clone", "--depth", "1", repoURL, targetDir)
+	ctx, cancel := context.WithTimeout(context.Background(), gitCommandTimeout)
+	defer cancel()
+
+	cmd := exec.CommandContext(ctx, "git", "clone", "--depth", "1", repoURL, targetDir)
 	cmd.Stdout = os.Stdout
 	cmd.Stderr = os.Stderr
 	if err := cmd.Run(); err != nil {
@@ -179,7 +187,7 @@ func findLatestVersion(docsDir string) (string, error) {
 		return "", fmt.Errorf("failed to read docs directory: %w", err)
 	}
 
-	var versions []Version
+	versions := make([]Version, 0, len(entries))
 	versionRegex := regexp.MustCompile(`^v(\d+)\.(\d+)\.x$`)
 
 	for _, entry := range entries {
@@ -230,7 +238,10 @@ func findLatestVersion(docsDir string) (string, error) {
 
 // cloneTypesRepository clones the types repository and sets sparse checkout to k6 types
 func cloneTypesRepository(repoURL, repoDir string) error {
-	cmd := exec.Command("git", "clone", "--filter=blob:none", "--sparse", repoURL, repoDir)
+	ctx, cancel := context.WithTimeout(context.Background(), gitCommandTimeout)
+	defer cancel()
+
+	cmd := exec.CommandContext(ctx, "git", "clone", "--filter=blob:none", "--sparse", repoURL, repoDir)
 	var cloneStderr bytes.Buffer
 	cmd.Stderr = &cloneStderr
 	err := cmd.Run()
@@ -238,7 +249,7 @@ func cloneTypesRepository(repoURL, repoDir string) error {
 		return fmt.Errorf("failed to clone types repository; reason: %s", cloneStderr.String())
 	}
 
-	cmd = exec.Command("git", "-C", repoDir, "sparse-checkout", "set", "types/k6")
+	cmd = exec.CommandContext(ctx, "git", "-C", repoDir, "sparse-checkout", "set", "types/k6")
 	var sparseStderr bytes.Buffer
 	cmd.Stderr = &sparseStderr
 	err = cmd.Run()

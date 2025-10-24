@@ -1,5 +1,8 @@
 # Ignore distribution files
 dist/
 
+# Ignore Go build cache generated during local runs
+.gocache/
+
 # Ignore Claude files
 **/*.claude*

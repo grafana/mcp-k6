@@ -1,6 +1,7 @@
 package search
 
 import (
+	"context"
 	"database/sql"
 
 	// Import sqlite3 driver for database/sql
@@ -18,12 +19,13 @@ func InitSQLiteDB(path string, recreate bool) (*sql.DB, error) {
 
 	// Optionally recreate the FTS5 table for documentation chunks.
 	// Use unicode61 tokenizer with extra token characters useful for code.
+	ctx := context.Background()
 	if recreate {
-		if _, err := db.Exec(`DROP TABLE IF EXISTS documentation;`); err != nil {
+		if _, err := db.ExecContext(ctx, `DROP TABLE IF EXISTS documentation;`); err != nil {
 			return nil, err
 		}
 	}
-	_, err = db.Exec(`
+	_, err = db.ExecContext(ctx, `
         CREATE VIRTUAL TABLE IF NOT EXISTS documentation
         USING fts5(
             title,

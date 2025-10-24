@@ -342,43 +342,41 @@ func executeK6Validation(ctx context.Context, scriptPath string) (*ValidationRes
 		Stderr:   stderr,
 	}
 
+	if err == nil {
+		return result, nil
+	}
+
 	// Handle different types of errors
-	if err != nil {
-		switch {
-		case errors.Is(err, context.DeadlineExceeded):
-			// Command timed out
-			result.Error = fmt.Sprintf("k6 validation timed out after %v", DefaultTimeout)
-			return result, &ValidationError{
-				Type:    "TIMEOUT",
-				Message: fmt.Sprintf("k6 validation timed out after %v", DefaultTimeout),
-				Cause:   err,
-			}
-		default:
-			var exitError *exec.ExitError
-			if errors.As(err, &exitError) {
-				// Command executed but returned non-zero exit code
-				// Check if this is a threshold failure (which we should ignore for validation)
-				if isThresholdFailure(stderr, stdout) {
-					// Threshold failure - script syntax is valid, just performance criteria not met
-					result.Valid = true
-					result.Error = "" // Clear error since this is not a validation failure
-				} else {
-					// Actual validation failure
-					result.Error = fmt.Sprintf("k6 validation failed with exit code %d", exitCode)
-				}
-			} else {
-				// Other execution errors
-				result.Error = fmt.Sprintf("failed to execute k6: %v", err)
-				return result, &ValidationError{
-					Type:    "EXECUTION_ERROR",
-					Message: "failed to execute k6 command",
-					Cause:   err,
-				}
-			}
+	if errors.Is(err, context.DeadlineExceeded) {
+		result.Error = fmt.Sprintf("k6 validation timed out after %v", DefaultTimeout)
+		return result, &ValidationError{
+			Type:    "TIMEOUT",
+			Message: fmt.Sprintf("k6 validation timed out after %v", DefaultTimeout),
+			Cause:   err,
 		}
 	}
 
-	return result, nil
+	var exitError *exec.ExitError
+	if errors.As(err, &exitError) {
+		// Check if this is a threshold failure (which we should ignore for validation)
+		if isThresholdFailure(stderr, stdout) {
+			// Threshold failure - script syntax is valid, just performance criteria not met
+			result.Valid = true
+			result.Error = "" // Clear error since this is not a validation failure
+		} else {
+			// Actual validation failure
+			result.Error = fmt.Sprintf("k6 validation failed with exit code %d", exitCode)
+		}
+		return result, nil
+	}
+
+	// Other execution errors
+	result.Error = fmt.Sprintf("failed to execute k6: %v", err)
+	return result, &ValidationError{
+		Type:    "EXECUTION_ERROR",
+		Message: "failed to execute k6 command",
+		Cause:   err,
+	}
 }
 
 // executeCommand executes a command and returns stdout, stderr, exit code, and error.
@@ -408,14 +406,16 @@ func executeCommand(cmd *exec.Cmd) (stdout, stderr string, exitCode int, err err
 
 // getPathType returns a safe representation of file paths for logging
 func getPathType(path string) string {
-	if strings.Contains(path, "temp") || strings.Contains(path, "tmp") {
+	switch {
+	case strings.Contains(path, "temp"), strings.Contains(path, "tmp"):
 		return "temporary"
-	} else if strings.HasSuffix(path, ".js") {
+	case strings.HasSuffix(path, ".js"):
 		return "javascript"
-	} else if strings.HasSuffix(path, ".ts") {
+	case strings.HasSuffix(path, ".ts"):
 		return "typescript"
+	default:
+		return "other"
 	}
-	return "other"
 }
 
 // isThresholdFailure checks if a k6 run failure was due to threshold violations
@@ -530,7 +530,8 @@ func getSuggestionForErrorType(errorType, message string) string {
 	switch errorType {
 	case "INPUT_VALIDATION":
 		if strings.Contains(message, "empty") {
-			return "Provide a valid k6 script with at least an import and default function. Example: import http from 'k6/http'; export default function() { http.get('https://httpbin.org/get'); }"
+			return "Provide a valid k6 script with at least an import and default function. " +
+				"Example: import http from 'k6/http'; export default function() { http.get('https://httpbin.org/get'); }"
 		}
 		if strings.Contains(message, "size") {
 			return "Reduce your script size. Consider splitting large scripts into modules or removing unnecessary code."
@@ -539,9 +540,11 @@ func getSuggestionForErrorType(errorType, message string) string {
 	case "SECURITY_VALIDATION":
 		return "Remove dangerous patterns from your script. k6 scripts should only use k6 APIs, not Node.js system functions."
 	case "K6_NOT_FOUND":
-		return "Install k6 on your system. Visit https://k6.io/docs/getting-started/installation/ for installation instructions."
+		return "Install k6 on your system. Visit https://k6.io/docs/getting-started/" +
+			"installation/ for installation instructions."
 	case "TIMEOUT":
-		return "Your script may have infinite loops or very slow operations. Check for blocking code and optimize performance."
+		return "Your script may have infinite loops or very slow operations. " +
+			"Check for blocking code and optimize performance."
 	default:
 		return "Review your script and ensure it follows k6 best practices"
 	}
@@ -694,10 +697,11 @@ func analyzeScriptContent(script string) []ValidationIssue {
 
 	if hasDefaultFunction && !hasHTTPCall && !strings.Contains(script, "check(") {
 		issues = append(issues, ValidationIssue{
-			Type:       "syntax",
-			Severity:   "low",
-			Message:    "Script doesn't appear to make any HTTP requests or checks",
-			Suggestion: "Add HTTP requests or checks to make your test meaningful. Example: http.get('https://httpbin.org/get');",
+			Type:     "syntax",
+			Severity: "low",
+			Message:  "Script doesn't appear to make any HTTP requests or checks",
+			Suggestion: "Add HTTP requests or checks to make your test meaningful. " +
+				"Example: http.get('https://httpbin.org/get');",
 		})
 	}
 
@@ -877,7 +881,8 @@ func addWorkflowIntegrationSuggestions(result *ValidationResult) {
 	}
 
 	// Add specific workflow suggestions based on validation status
-	if result.Valid && result.Summary.ReadyToRun {
+	switch {
+	case result.Valid && result.Summary.ReadyToRun:
 		// Script is ready to run - suggest next steps
 		workflowSuggestions := []string{
 			"✓ Validation passed! Your script is ready for load testing",
@@ -897,13 +902,13 @@ func addWorkflowIntegrationSuggestions(result *ValidationResult) {
 			"Monitor response times and error rates during execution",
 		}
 		result.Recommendations = append(result.Recommendations, runRecommendations...)
-	} else if result.Valid && len(result.Issues) > 0 {
+	case result.Valid && len(result.Issues) > 0:
 		// Script is valid but has minor issues
 		result.NextSteps = append([]string{
 			"Consider addressing the validation issues before running at scale",
 			"You can still run the script, but monitor for the highlighted issues",
 		}, result.NextSteps...)
-	} else {
+	default:
 		// Script has critical issues
 		result.NextSteps = append([]string{
 			"⚠ Fix validation errors before attempting to run the script",

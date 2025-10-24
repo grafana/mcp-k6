@@ -11,7 +11,9 @@ LDFLAGS := -s -w -X github.com/grafana/k6-mcp/internal/buildinfo.Version=$(VERSI
 	-X github.com/grafana/k6-mcp/internal/buildinfo.Commit=$(COMMIT) \
 	-X github.com/grafana/k6-mcp/internal/buildinfo.Date=$(TODAY)
 
-.PHONY: run install install-only build build-only release prepare clean index collect help list
+CMD_PACKAGES := $(shell go list ./cmd/...)
+
+.PHONY: run install install-only build build-only release prepare clean index collect help list tests
 
 run: prepare ## Run the k6-mcp server
 	@go run -tags '$(GO_TAGS)' ./cmd/k6-mcp
@@ -27,6 +29,14 @@ build: prepare ## Build the k6-mcp server (VERSION=dev)
 
 build-only: ## Build the k6-mcp server without preparing assets first (VERSION=dev)
 	@go build -tags '$(GO_TAGS)' -ldflags "$(LDFLAGS)" -o k6-mcp ./cmd/k6-mcp
+
+test: prepare## Run the tests
+	@go test -tags '$(GO_TAGS)' ./...
+
+tests: test ## Alias for test
+
+vet: prepare ## Run the vet command
+	@go vet ./...
 
 release: prepare ## Create a release-style build (VERSION=dev)
 	@go build -tags '$(GO_TAGS)' -trimpath -ldflags "$(LDFLAGS)" -o k6-mcp ./cmd/k6-mcp

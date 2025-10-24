@@ -1,7 +1,9 @@
 package search
 
 import (
+	"fmt"
 	"os"
+	"path/filepath"
 	"strings"
 
 	"github.com/yuin/goldmark"
@@ -11,7 +13,14 @@ import (
 
 // ParseMarkdown parses a Markdown file and extracts content for indexing.
 func ParseMarkdown(path string) ([]Result, error) {
-	src, err := os.ReadFile(path)
+	sanitizedPath, err := sanitizeMarkdownPath(path)
+	if err != nil {
+		return nil, err
+	}
+
+	//nolint:forbidigo // Reading documentation files is required for indexing
+	// #nosec G304 -- sanitizedPath is validated to prevent path traversal
+	src, err := os.ReadFile(sanitizedPath)
 	if err != nil {
 		return nil, err
 	}
@@ -30,7 +39,7 @@ func ParseMarkdown(path string) ([]Result, error) {
 		chunks = append(chunks, Result{
 			Title:   currentTitle,
 			Content: strings.TrimSpace(buffer.String()),
-			Path:    path,
+			Path:    sanitizedPath,
 		})
 		buffer.Reset()
 	}
@@ -82,4 +91,19 @@ func ParseMarkdown(path string) ([]Result, error) {
 	walk(doc)
 	flush()
 	return chunks, nil
+}
+
+func sanitizeMarkdownPath(path string) (string, error) {
+	cleanPath := filepath.Clean(path)
+	if cleanPath == ".." {
+		return "", fmt.Errorf("invalid path: %s", path)
+	}
+
+	separator := string(filepath.Separator)
+	parentSegment := ".." + separator
+	if strings.HasPrefix(cleanPath, parentSegment) || strings.Contains(cleanPath, separator+".."+separator) {
+		return "", fmt.Errorf("path traversal detected: %s", path)
+	}
+
+	return cleanPath, nil
 }

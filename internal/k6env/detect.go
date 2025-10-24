@@ -1,3 +1,4 @@
+// Package k6env provides utilities for detecting and managing k6 installations.
 package k6env
 
 import (
