@@ -6,3 +6,6 @@ dist/
 
 # Ignore Claude files
 **/*.claude*
+
+# Binary
+k6-mcp

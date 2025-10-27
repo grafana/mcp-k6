@@ -15,7 +15,13 @@ var EmbeddedDB []byte
 //go:embed dist/definitions/types/k6/**
 var TypeDefinitions embed.FS
 
-// Resources contains embedded resource files such as prompts and templates.
+// DistResources contains embedded resource files, such as prompts and templates,
+// that are generated during the build process.
+//
+//go:embed dist/resources/**
+var DistResources embed.FS
+
+// Resources contains static, embedded resource files such as prompts and templates.
 //
 //go:embed resources/**
 var Resources embed.FS
