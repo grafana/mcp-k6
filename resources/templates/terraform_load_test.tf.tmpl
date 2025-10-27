@@ -1,7 +1,0 @@
-resource "grafana_k6_load_test" "{{ .LoadTestResourceName }}" {
-  project_id = {{ .ProjectID }}
-  name       = "{{ .LoadTestName }}"
-  script     = <<-EOT
-{{ .Script | indent "    " }}
-  EOT
-}

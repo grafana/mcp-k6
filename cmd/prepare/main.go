@@ -7,10 +7,13 @@ package main
 import (
 	"bytes"
 	"context"
+	"encoding/json"
 	"flag"
 	"fmt"
+	"io"
 	"io/fs"
 	"log"
+	"net/http"
 	"os"
 	"os/exec"
 	"path/filepath"
@@ -18,6 +21,7 @@ import (
 	"sort"
 	"strconv"
 	"strings"
+	"text/template"
 	"time"
 
 	"github.com/grafana/k6-mcp/internal"
@@ -27,19 +31,53 @@ import (
 const (
 	dirPermissions    = 0o700
 	gitCommandTimeout = 5 * time.Minute
+
+	tfSchemaURL          = "https://raw.githubusercontent.com/grafana/terraform-provider-grafana/refs/heads/main/current_schema.json"
+	tfGrafanaProviderURI = "registry.terraform.io/grafana/grafana"
 )
+
+var tfK6CloudResources []string = []string{
+	"grafana_k6_installation",
+	"grafana_k6_load_test",
+	"grafana_k6_project",
+	"grafana_k6_project_allowed_load_zones",
+	"grafana_k6_project_limits",
+	"grafana_k6_schedule",
+}
+
+var tfK6CloudDataSources = []string{
+	"grafana_k6_load_test",
+	"grafana_k6_load_tests",
+	"grafana_k6_project",
+	"grafana_k6_project_allowed_load_zones",
+	"grafana_k6_project_limits",
+	"grafana_k6_projects",
+	"grafana_k6_schedule",
+	"grafana_k6_schedules",
+}
+
+var tfAttributeProperties = []string{
+	"type", "description", "computed", "optional", "required",
+}
 
 func main() {
 	var (
 		indexOnly   = flag.Bool("index-only", false, "Only perform documentation indexing")
 		collectOnly = flag.Bool("collect-only", false, "Only collect type definitions")
+		tfOnly      = flag.Bool("terraform-only", false, "Only collect Grafana Terraform provider resource definitions")
 		recreateDB  = flag.Bool("recreate-db", true, "Drop and recreate the FTS5 table before indexing")
 	)
 	flag.Parse()
 
 	// Validate flags
-	if *indexOnly && *collectOnly {
-		log.Fatal("Cannot specify both --index-only and --collect-only")
+	onlyOptions := 0
+	for _, opt := range []*bool{indexOnly, collectOnly, tfOnly} {
+		if *opt {
+			onlyOptions++
+		}
+	}
+	if onlyOptions > 1 {
+		log.Fatal("Cannot specify more than one --[operation]-only flag")
 	}
 
 	workDir, err := os.Getwd()
@@ -48,8 +86,15 @@ func main() {
 	}
 
 	// Determine what operations to run
-	runIndex := !*collectOnly
-	runCollect := !*indexOnly
+	runIndex := *indexOnly
+	runCollect := *collectOnly
+	runTf := *tfOnly
+	if onlyOptions == 0 {
+		// Run all operations
+		runIndex = true
+		runCollect = true
+		runTf = true
+	}
 
 	if runIndex {
 		log.Println("Starting documentation indexing...")
@@ -65,6 +110,14 @@ func main() {
 			log.Fatalf("Type definitions collection failed: %v", err)
 		}
 		log.Println("Type definitions collection completed successfully")
+	}
+
+	if runTf {
+		log.Println("Starting Terraform provider resources extraction...")
+		if err := runTerraformExtractor(); err != nil {
+			log.Fatalf("Terraform resources extraction failed: %v", err)
+		}
+		log.Println("Terraform resources extraction completed successfully")
 	}
 
 	log.Println("Preparation completed successfully")
@@ -148,6 +201,7 @@ func runCollector(workDir string) error {
 		}
 	}
 
+	log.Printf("Cloning types repository...")
 	if err := cloneTypesRepository(typesRepo, destDir); err != nil {
 		return fmt.Errorf("failed to clone types repository: %w", err)
 	}
@@ -315,6 +369,152 @@ func cleanUpTypesRepository(repoDir string) error {
 	for _, dir := range directories {
 		_ = os.Remove(dir) // remove only if empty
 	}
+
+	return nil
+}
+
+type tfAttribute struct {
+	Type        json.RawMessage `json:"type"`
+	Description string          `json:"description"`
+	Optional    bool            `json:"optional,omitempty"`
+	Computed    bool            `json:"computed,omitempty"`
+	Required    bool            `json:"required,omitempty"`
+}
+
+type tfBlock struct {
+	Description string                 `json:"description"`
+	Attributes  map[string]tfAttribute `json:"attributes"`
+}
+
+type tfSchemaObject struct {
+	Block tfBlock `json:"block"`
+}
+
+type tfProviderSchema struct {
+	ResourceSchemas   map[string]tfSchemaObject `json:"resource_schemas"`
+	DataSourceSchemas map[string]tfSchemaObject `json:"data_source_schemas"`
+}
+
+type tfJson struct {
+	ProviderSchemas map[string]tfProviderSchema `json:"provider_schemas"`
+}
+
+type templateResource struct {
+	Name        string
+	Description string
+	JSON        string
+}
+
+type templateData struct {
+	Resources   []templateResource
+	DataSources []templateResource
+}
+
+// schemaObjectToTemplateResource converts a tfSchemaObject to a templateResource
+func schemaObjectToTemplateResource(name string, schema tfSchemaObject) (templateResource, error) {
+	// Pretty print only the attributes
+	attributesJSON, err := json.MarshalIndent(schema.Block.Attributes, "", "  ")
+	if err != nil {
+		return templateResource{}, fmt.Errorf("failed to format JSON for %s: %w", name, err)
+	}
+
+	return templateResource{
+		Name:        name,
+		Description: strings.TrimSpace(schema.Block.Description),
+		JSON:        string(attributesJSON),
+	}, nil
+}
+
+func runTerraformExtractor() error {
+	log.Printf("Fetching Terraform provider schema from: %s", tfSchemaURL)
+
+	resp, err := http.Get(tfSchemaURL)
+	if err != nil {
+		return fmt.Errorf("failed to fetch schema: %w", err)
+	}
+	defer resp.Body.Close()
+
+	if resp.StatusCode != http.StatusOK {
+		return fmt.Errorf("failed to fetch schema: HTTP %d", resp.StatusCode)
+	}
+
+	body, err := io.ReadAll(resp.Body)
+	if err != nil {
+		return fmt.Errorf("failed to read response body: %w", err)
+	}
+
+	var schema tfJson
+	if err := json.Unmarshal(body, &schema); err != nil {
+		return fmt.Errorf("failed to parse schema JSON: %w", err)
+	}
+
+	log.Printf("Successfully parsed Terraform provider schema with %d provider(s)", len(schema.ProviderSchemas))
+
+	grafanaProvider, ok := schema.ProviderSchemas[tfGrafanaProviderURI]
+	if !ok {
+		return fmt.Errorf("provider for Grafana not found in schema: %s", tfGrafanaProviderURI)
+	}
+
+	// Collect resources
+	var templateResources []templateResource
+	for _, resName := range tfK6CloudResources {
+		resSchema, ok := grafanaProvider.ResourceSchemas[resName]
+		if !ok {
+			log.Printf("Warning: Resource schema for '%s' not found\n", resName)
+			continue
+		}
+
+		tmplRes, err := schemaObjectToTemplateResource(resName, resSchema)
+		if err != nil {
+			return err
+		}
+		templateResources = append(templateResources, tmplRes)
+	}
+
+	// Collect data sources
+	var templateDataSources []templateResource
+	for _, dsName := range tfK6CloudDataSources {
+		dsSchema, ok := grafanaProvider.DataSourceSchemas[dsName]
+		if !ok {
+			log.Printf("Warning: Data source schema for '%s' not found\n", dsName)
+			continue
+		}
+
+		tmplDS, err := schemaObjectToTemplateResource(dsName, dsSchema)
+		if err != nil {
+			return err
+		}
+		templateDataSources = append(templateDataSources, tmplDS)
+	}
+
+	// Load and parse the template
+	tmplContent, err := os.ReadFile("cmd/prepare/resources/TERRAFORM.md.tpl")
+	if err != nil {
+		return fmt.Errorf("failed to read template file: %w", err)
+	}
+
+	tmpl, err := template.New("terraform").Parse(string(tmplContent))
+	if err != nil {
+		return fmt.Errorf("failed to parse template: %w", err)
+	}
+
+	// Execute the template
+	var output bytes.Buffer
+	data := templateData{
+		Resources:   templateResources,
+		DataSources: templateDataSources,
+	}
+	if err := tmpl.Execute(&output, data); err != nil {
+		return fmt.Errorf("failed to execute template: %w", err)
+	}
+
+	// Write output to the destination file
+	outputPath := filepath.Join("dist", "TERRAFORM.md")
+	if err := os.WriteFile(outputPath, output.Bytes(), 0o600); err != nil {
+		return fmt.Errorf("failed to write output file: %w", err)
+	}
+
+	log.Printf("Successfully generated Terraform documentation at: %s", outputPath)
 
 	return nil
 }
