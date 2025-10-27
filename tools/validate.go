@@ -1,8 +1,8 @@
-// Package validator provides k6 script validation functionality.
-package validator
+package tools
 
 import (
 	"context"
+	"encoding/json"
 	"errors"
 	"fmt"
 	"log/slog"
@@ -12,17 +12,56 @@ import (
 	"time"
 
 	"github.com/grafana/k6-mcp/internal/logging"
+	"github.com/mark3labs/mcp-go/mcp"
+	"github.com/mark3labs/mcp-go/server"
 )
 
-const (
-	// DefaultTimeout is the default timeout for k6 validation runs.
-	DefaultTimeout = 30 * time.Second
-	// MaxScriptSize is the maximum allowed script size in bytes (1MB).
-	MaxScriptSize = 1024 * 1024
+// ValidateTool exposes a tool for validating k6 scripts.
+//
+//nolint:gochecknoglobals // Shared tool definition registered at startup.
+var ValidateTool = mcp.NewTool(
+	"validate_script",
+	mcp.WithDescription(
+		"Validate a k6 script by running it with minimal configuration (1 VU, 1 iteration). "+
+			"Returns detailed validation results with syntax errors, runtime issues, "+
+			"and actionable recommendations for fixing problems.",
+	),
+	mcp.WithString(
+		"script",
+		mcp.Required(),
+		mcp.Description(
+			"The k6 script content to validate (either JavaScript or TypeScript code). "+
+				"Example: 'import http from \"k6/http\"; export default function() { http.get(\"https://httpbin.org/get\"); }'",
+		),
+	),
 )
 
-// ValidationResult contains the result of a k6 script validation.
-type ValidationResult struct {
+// RegisterValidateTool registers the validate tool with the MCP server.
+func RegisterValidateTool(s *server.MCPServer) {
+	s.AddTool(ValidateTool, withToolLogger("validate_script", validate))
+}
+
+func validate(ctx context.Context, request mcp.CallToolRequest) (*mcp.CallToolResult, error) {
+	script, err := request.RequireString("script")
+	if err != nil {
+		return nil, err
+	}
+
+	result, err := validateK6Script(ctx, script)
+	if err != nil {
+		return nil, err
+	}
+
+	resultJSON, err := json.MarshalIndent(result, "", "  ")
+	if err != nil {
+		return nil, err
+	}
+
+	return mcp.NewToolResultText(string(resultJSON)), nil
+}
+
+// ValidationResponse contains the result of a k6 script validation.
+type ValidationResponse struct {
 	Valid           bool              `json:"valid"`
 	ExitCode        int               `json:"exit_code"`
 	Stdout          string            `json:"stdout"`
@@ -47,7 +86,7 @@ type ValidationSummary struct {
 
 // ValidationIssue represents a specific issue found during validation.
 type ValidationIssue struct {
-	Type       string `json:"type"`                  // "syntax", "import", "function", "security"
+	Type       string `json:"type"`                  // "syntax", "import", "function"
 	Severity   string `json:"severity"`              // "critical", "high", "medium", "low"
 	Message    string `json:"message"`               // Description of the issue
 	Suggestion string `json:"suggestion"`            // Specific fix recommendation
@@ -72,16 +111,19 @@ func (e *ValidationError) Unwrap() error {
 	return e.Cause
 }
 
-// ValidateK6Script validates a k6 script by executing it with minimal configuration.
-func ValidateK6Script(ctx context.Context, script string) (*ValidationResult, error) {
+// validateK6Script validates a k6 script by executing it with minimal configuration.
+//
+//nolint:funlen // Function length slightly exceeds limit due to comprehensive logging
+func validateK6Script(ctx context.Context, script string) (*ValidationResponse, error) {
 	startTime := time.Now()
-	logger := logging.WithComponent("validator")
+	logger := logging.LoggerFromContext(ctx)
 
 	logger.DebugContext(ctx, "Starting script validation",
 		slog.Int("script_size", len(script)),
 	)
 
 	// Input validation
+	logger.DebugContext(ctx, "Validating script input")
 	if err := validateInput(script); err != nil {
 		logging.ValidationEvent(ctx, "input_validation", false, map[string]interface{}{
 			"error":       err.Error(),
@@ -89,7 +131,7 @@ func ValidateK6Script(ctx context.Context, script string) (*ValidationResult, er
 		})
 
 		issue := createValidationIssueFromError(err)
-		return &ValidationResult{
+		return &ValidationResponse{
 			Valid:    false,
 			Error:    err.Error(),
 			Duration: time.Since(startTime).String(),
@@ -114,7 +156,7 @@ func ValidateK6Script(ctx context.Context, script string) (*ValidationResult, er
 	tempFile, cleanup, err := createSecureTempFile(script)
 	if err != nil {
 		logging.FileOperation(ctx, "validator", "create_temp_file", tempFile, err)
-		return &ValidationResult{
+		return &ValidationResponse{
 			Valid:    false,
 			Error:    fmt.Sprintf("failed to create temporary file: %v", err),
 			Duration: time.Since(startTime).String(),
@@ -139,6 +181,8 @@ func ValidateK6Script(ctx context.Context, script string) (*ValidationResult, er
 	logging.FileOperation(ctx, "validator", "create_temp_file", tempFile, nil)
 
 	// Execute k6 validation
+	logger.DebugContext(ctx, "Starting k6 validation execution",
+		slog.String("script_path", getPathType(tempFile)))
 	result, err := executeK6Validation(ctx, tempFile)
 	if err != nil {
 		return nil, fmt.Errorf("validating k6 script failed; reason: %w", err)
@@ -146,6 +190,8 @@ func ValidateK6Script(ctx context.Context, script string) (*ValidationResult, er
 
 	// Enhance result with analysis if validation completed
 	result.Duration = time.Since(startTime).String()
+	logger.DebugContext(ctx, "Enhancing validation result with analysis",
+		slog.Int("initial_issues", len(result.Issues)))
 	enhanceValidationResult(result, script)
 
 	logger.DebugContext(ctx, "Validation completed",
@@ -170,27 +216,6 @@ func validateInput(script string) error {
 		return &ValidationError{
 			Type:    "INPUT_VALIDATION",
 			Message: fmt.Sprintf("script size exceeds maximum allowed size of %d bytes", MaxScriptSize),
-		}
-	}
-
-	// Check for potentially dangerous patterns
-	dangerousPatterns := []string{
-		"require('child_process')",
-		"require(\"child_process\")",
-		"exec(",
-		"spawn(",
-		"fork(",
-		"execSync(",
-		"execFile(",
-	}
-
-	scriptLower := strings.ToLower(script)
-	for _, pattern := range dangerousPatterns {
-		if strings.Contains(scriptLower, strings.ToLower(pattern)) {
-			return &ValidationError{
-				Type:    "SECURITY_VALIDATION",
-				Message: fmt.Sprintf("script contains potentially dangerous pattern: %s", pattern),
-			}
 		}
 	}
 
@@ -283,9 +308,18 @@ func cleanupTempFile(tmpFile *os.File) {
 	}
 }
 
+const (
+	// DefaultTimeout is the default timeout for k6 validation runs.
+	DefaultTimeout = 30 * time.Second
+	// MaxScriptSize is the maximum allowed script size in bytes (1MB).
+	MaxScriptSize = 1024 * 1024
+)
+
 // executeK6Validation executes k6 with the given script file.
-func executeK6Validation(ctx context.Context, scriptPath string) (*ValidationResult, error) {
-	logger := logging.WithComponent("validator")
+//
+//nolint:funlen // Function length slightly exceeds limit due to comprehensive logging
+func executeK6Validation(ctx context.Context, scriptPath string) (*ValidationResponse, error) {
+	logger := logging.LoggerFromContext(ctx)
 	startTime := time.Now()
 
 	// Create context with timeout
@@ -297,7 +331,7 @@ func executeK6Validation(ctx context.Context, scriptPath string) (*ValidationRes
 		logger.ErrorContext(ctx, "k6 executable not found",
 			slog.String("error", err.Error()),
 		)
-		return &ValidationResult{
+		return &ValidationResponse{
 				Valid: false,
 				Error: "k6 executable not found in PATH",
 			}, &ValidationError{
@@ -335,7 +369,7 @@ func executeK6Validation(ctx context.Context, scriptPath string) (*ValidationRes
 	// Log execution results
 	logging.ExecutionEvent(ctx, "validator", "k6 run", time.Since(startTime), exitCode, err)
 
-	result := &ValidationResult{
+	result := &ValidationResponse{
 		Valid:    exitCode == 0,
 		ExitCode: exitCode,
 		Stdout:   stdout,
@@ -348,7 +382,9 @@ func executeK6Validation(ctx context.Context, scriptPath string) (*ValidationRes
 
 	// Handle different types of errors
 	if errors.Is(err, context.DeadlineExceeded) {
-		result.Error = fmt.Sprintf("k6 validation timed out after %v", DefaultTimeout)
+		logger.WarnContext(ctx, "k6 validation timed out",
+			slog.Duration("timeout", ValidationTimeout))
+		result.Error = fmt.Sprintf("k6 validation timed out after %v", ValidationTimeout)
 		return result, &ValidationError{
 			Type:    "TIMEOUT",
 			Message: fmt.Sprintf("k6 validation timed out after %v", DefaultTimeout),
@@ -361,10 +397,14 @@ func executeK6Validation(ctx context.Context, scriptPath string) (*ValidationRes
 		// Check if this is a threshold failure (which we should ignore for validation)
 		if isThresholdFailure(stderr, stdout) {
 			// Threshold failure - script syntax is valid, just performance criteria not met
+			logger.DebugContext(ctx, "Validation completed with threshold failure (script is valid)",
+				slog.Int("exit_code", exitCode))
 			result.Valid = true
 			result.Error = "" // Clear error since this is not a validation failure
 		} else {
 			// Actual validation failure
+			logger.WarnContext(ctx, "k6 validation failed",
+				slog.Int("exit_code", exitCode))
 			result.Error = fmt.Sprintf("k6 validation failed with exit code %d", exitCode)
 		}
 		return result, nil
@@ -494,8 +534,6 @@ func mapErrorTypeToIssueType(errorType string) string {
 	switch errorType {
 	case "INPUT_VALIDATION":
 		return "syntax"
-	case "SECURITY_VALIDATION":
-		return "security"
 	case "FILE_CREATION", "FILE_PERMISSION", "FILE_WRITE", "FILE_CLOSE":
 		return "system"
 	case "K6_NOT_FOUND", "EXECUTION_ERROR":
@@ -510,8 +548,6 @@ func mapErrorTypeToIssueType(errorType string) string {
 // mapErrorTypeToSeverity maps ValidationError types to severity levels
 func mapErrorTypeToSeverity(errorType string) string {
 	switch errorType {
-	case "SECURITY_VALIDATION":
-		return "critical"
 	case "K6_NOT_FOUND", "EXECUTION_ERROR":
 		return "critical"
 	case "INPUT_VALIDATION":
@@ -537,8 +573,6 @@ func getSuggestionForErrorType(errorType, message string) string {
 			return "Reduce your script size. Consider splitting large scripts into modules or removing unnecessary code."
 		}
 		return "Check your script syntax and ensure it follows k6 script structure"
-	case "SECURITY_VALIDATION":
-		return "Remove dangerous patterns from your script. k6 scripts should only use k6 APIs, not Node.js system functions."
 	case "K6_NOT_FOUND":
 		return "Install k6 on your system. Visit https://k6.io/docs/getting-started/" +
 			"installation/ for installation instructions."
@@ -559,12 +593,6 @@ func getRecommendationsForIssue(issue ValidationIssue) []string {
 			"Ensure your script has proper import statements and a default function",
 			"Check for missing semicolons, brackets, or quotes",
 		}
-	case "security":
-		return []string{
-			"Use only k6 built-in modules and APIs",
-			"Remove any Node.js system calls or file system access",
-			"Use the 'search' tool with query 'k6 modules' to see available APIs",
-		}
 	case "environment":
 		return []string{
 			"Ensure k6 is installed and available in your PATH",
@@ -579,7 +607,7 @@ func getRecommendationsForIssue(issue ValidationIssue) []string {
 }
 
 // enhanceValidationResult adds comprehensive analysis to the validation result
-func enhanceValidationResult(result *ValidationResult, script string) {
+func enhanceValidationResult(result *ValidationResponse, script string) {
 	if result == nil {
 		return
 	}
@@ -756,7 +784,7 @@ func analyzeK6Output(stderr, stdout string) []ValidationIssue {
 }
 
 // generateValidationSummary creates a comprehensive summary of validation results
-func generateValidationSummary(result *ValidationResult) ValidationSummary {
+func generateValidationSummary(result *ValidationResponse) ValidationSummary {
 	summary := ValidationSummary{
 		IssueCount: len(result.Issues),
 		ReadyToRun: result.Valid && result.ExitCode == 0,
@@ -804,7 +832,7 @@ func compareSeverity(a, b string) int {
 }
 
 // generateNextSteps provides actionable next steps based on validation results
-func generateNextSteps(result *ValidationResult) []string {
+func generateNextSteps(result *ValidationResponse) []string {
 	if result.Valid && result.ExitCode == 0 {
 		steps := []string{"Your script is ready to run!"}
 
@@ -824,23 +852,16 @@ func generateNextSteps(result *ValidationResult) []string {
 	steps := []string{"Fix the validation errors before running the script"}
 
 	// Add specific steps based on issue types
-	hasSecurityIssues := false
 	hasSyntaxIssues := false
 	hasImportIssues := false
 
 	for _, issue := range result.Issues {
 		switch issue.Type {
-		case "security":
-			hasSecurityIssues = true
 		case "syntax":
 			hasSyntaxIssues = true
 		case "import":
 			hasImportIssues = true
 		}
-	}
-
-	if hasSecurityIssues {
-		steps = append(steps, "Remove dangerous patterns and use only k6 APIs")
 	}
 
 	if hasSyntaxIssues {
@@ -875,7 +896,7 @@ func removeDuplicates(slice []string) []string {
 }
 
 // addWorkflowIntegrationSuggestions adds suggestions for transitioning between validation and run
-func addWorkflowIntegrationSuggestions(result *ValidationResult) {
+func addWorkflowIntegrationSuggestions(result *ValidationResponse) {
 	if result == nil {
 		return
 	}

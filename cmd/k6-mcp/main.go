@@ -81,9 +81,9 @@ func run(ctx context.Context, logger *slog.Logger, stderr io.Writer) int {
 
 	// Register tools
 	tools.RegisterInfoTool(s)
+	tools.RegisterValidateTool(s)
 	registerRunTool(s, handlers.WithToolMiddleware("run_k6_script", handlers.NewRunHandler()))
 	registerDocumentationTools(s, handlers.WithToolMiddleware("search_k6_documentation", handlers.NewFullTextSearchHandler(db)))
-	registerValidationTool(s, handlers.WithToolMiddleware("validate_k6_script", handlers.NewValidationHandler()))
 
 	// Register resources
 	registerBestPracticesResource(s)
@@ -114,20 +114,6 @@ func handleK6LookupError(logger *slog.Logger, stderr io.Writer, err error) int {
 	}
 
 	return 1
-}
-
-func registerValidationTool(s *server.MCPServer, h handlers.ToolHandler) {
-	validateTool := mcp.NewTool(
-		"validate_k6_script",
-		mcp.WithDescription("Validate a k6 script by running it with minimal configuration (1 VU, 1 iteration). Returns detailed validation results with syntax errors, runtime issues, and actionable recommendations for fixing problems."),
-		mcp.WithString(
-			"script",
-			mcp.Required(),
-			mcp.Description("The k6 script content to validate (JavaScript/TypeScript). Example: 'import http from \"k6/http\"; export default function() { http.get(\"https://httpbin.org/get\"); }'"),
-		),
-	)
-
-	s.AddTool(validateTool, h.Handle)
 }
 
 func registerDocumentationTools(s *server.MCPServer, h handlers.ToolHandler) {
