@@ -31,7 +31,7 @@ import (
 const (
 	dirPermissions    = 0o700
 	gitCommandTimeout = 5 * time.Minute
-	distDir = "dist"
+	distDir           = "dist"
 
 	tfSchemaURL          = "https://raw.githubusercontent.com/grafana/terraform-provider-grafana/refs/heads/main/current_schema.json"
 	tfGrafanaProviderURI = "registry.terraform.io/grafana/grafana"
