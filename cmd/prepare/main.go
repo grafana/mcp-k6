@@ -14,6 +14,7 @@ import (
 	"io/fs"
 	"log"
 	"net/http"
+	"net/url"
 	"os"
 	"os/exec"
 	"path/filepath"
@@ -33,10 +34,12 @@ const (
 	gitCommandTimeout = 5 * time.Minute
 	distDir           = "dist"
 
+	//nolint:lll
 	tfSchemaURL          = "https://raw.githubusercontent.com/grafana/terraform-provider-grafana/refs/heads/main/current_schema.json"
 	tfGrafanaProviderURI = "registry.terraform.io/grafana/grafana"
 )
 
+//nolint:gochecknoglobals
 var tfK6CloudResources = []string{
 	"grafana_k6_installation",
 	"grafana_k6_load_test",
@@ -46,6 +49,7 @@ var tfK6CloudResources = []string{
 	"grafana_k6_schedule",
 }
 
+//nolint:gochecknoglobals
 var tfK6CloudDataSources = []string{
 	"grafana_k6_load_test",
 	"grafana_k6_load_tests",
@@ -391,7 +395,7 @@ type tfProviderSchema struct {
 	DataSourceSchemas map[string]tfSchemaObject `json:"data_source_schemas"`
 }
 
-type tfJson struct {
+type tfJSON struct {
 	ProviderSchemas map[string]tfProviderSchema `json:"provider_schemas"`
 }
 
@@ -421,31 +425,50 @@ func schemaObjectToTemplateResource(name string, schema tfSchemaObject) (templat
 	}, nil
 }
 
-func runTerraformExtractor(workDir string) error {
+func fetchTfSchema() (*tfJSON, error) {
 	log.Printf("Fetching Terraform provider schema from: %s", tfSchemaURL)
 
-	client := &http.Client{Timeout: 30 * time.Second}
-	resp, err := client.Get(tfSchemaURL)
+	schemaURL, err := url.Parse(tfSchemaURL)
 	if err != nil {
-		return fmt.Errorf("failed to fetch schema: %w", err)
+		return nil, fmt.Errorf("error parsing url: %w", err)
 	}
-	defer resp.Body.Close()
+
+	client := &http.Client{Timeout: 30 * time.Second}
+	resp, err := client.Do(&http.Request{
+		Method: http.MethodGet,
+		URL:    schemaURL,
+	})
+	if err != nil {
+		return nil, fmt.Errorf("failed to fetch schema: %w", err)
+	}
+	defer func() {
+		_ = resp.Body.Close()
+	}()
 
 	if resp.StatusCode != http.StatusOK {
-		return fmt.Errorf("failed to fetch schema: HTTP %d", resp.StatusCode)
+		return nil, fmt.Errorf("failed to fetch schema: HTTP %d", resp.StatusCode)
 	}
 
 	body, err := io.ReadAll(resp.Body)
 	if err != nil {
-		return fmt.Errorf("failed to read response body: %w", err)
+		return nil, fmt.Errorf("failed to read response body: %w", err)
 	}
 
-	var schema tfJson
+	var schema tfJSON
 	if err := json.Unmarshal(body, &schema); err != nil {
-		return fmt.Errorf("failed to parse schema JSON: %w", err)
+		return nil, fmt.Errorf("failed to parse schema JSON: %w", err)
 	}
 
 	log.Printf("Successfully parsed Terraform provider schema with %d provider(s)", len(schema.ProviderSchemas))
+
+	return &schema, nil
+}
+
+func runTerraformExtractor(workDir string) error {
+	schema, err := fetchTfSchema()
+	if err != nil {
+		return err
+	}
 
 	grafanaProvider, ok := schema.ProviderSchemas[tfGrafanaProviderURI]
 	if !ok {
@@ -453,7 +476,7 @@ func runTerraformExtractor(workDir string) error {
 	}
 
 	// Collect resources
-	var templateResources []templateResource
+	templateResources := make([]templateResource, 0, len(tfK6CloudResources))
 	for _, resName := range tfK6CloudResources {
 		resSchema, ok := grafanaProvider.ResourceSchemas[resName]
 		if !ok {
@@ -469,7 +492,7 @@ func runTerraformExtractor(workDir string) error {
 	}
 
 	// Collect data sources
-	var templateDataSources []templateResource
+	templateDataSources := make([]templateResource, 0, len(tfK6CloudDataSources))
 	for _, dsName := range tfK6CloudDataSources {
 		dsSchema, ok := grafanaProvider.DataSourceSchemas[dsName]
 		if !ok {
