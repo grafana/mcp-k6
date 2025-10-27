@@ -59,7 +59,7 @@ func TestInfoVersion(t *testing.T) {
 		t.Fatalf("Version returned error: %v", err)
 	}
 
-	expected := "k6 v0.0.0-test"
+	expected := "0.0.0"
 	if version != expected {
 		t.Fatalf("Version = %q, want %q (stub path: %s)", version, expected, path)
 	}

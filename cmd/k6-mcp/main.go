@@ -24,6 +24,7 @@ import (
 	"github.com/grafana/k6-mcp/internal/handlers"
 	"github.com/grafana/k6-mcp/internal/k6env"
 	"github.com/grafana/k6-mcp/internal/logging"
+	"github.com/grafana/k6-mcp/tools"
 )
 
 var serveStdio = server.ServeStdio
@@ -67,6 +68,7 @@ func run(ctx context.Context, logger *slog.Logger, stderr io.Writer) int {
 	)
 
 	// Register tools
+	tools.RegisterInfoTool(s)
 	registerRunTool(s, handlers.WithToolMiddleware("run_k6_script", handlers.NewRunHandler()))
 	registerDocumentationTools(s, handlers.WithToolMiddleware("search_k6_documentation", handlers.NewFullTextSearchHandler(db)))
 	registerValidationTool(s, handlers.WithToolMiddleware("validate_k6_script", handlers.NewValidationHandler()))
