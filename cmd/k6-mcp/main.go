@@ -82,8 +82,8 @@ func run(ctx context.Context, logger *slog.Logger, stderr io.Writer) int {
 	// Register tools
 	tools.RegisterInfoTool(s)
 	tools.RegisterValidateTool(s)
+	tools.RegisterSearchDocumentationTool(s, db)
 	registerRunTool(s, handlers.WithToolMiddleware("run_k6_script", handlers.NewRunHandler()))
-	registerDocumentationTools(s, handlers.WithToolMiddleware("search_k6_documentation", handlers.NewFullTextSearchHandler(db)))
 
 	// Register resources
 	registerBestPracticesResource(s)
@@ -114,25 +114,6 @@ func handleK6LookupError(logger *slog.Logger, stderr io.Writer, err error) int {
 	}
 
 	return 1
-}
-
-func registerDocumentationTools(s *server.MCPServer, h handlers.ToolHandler) {
-	// Register the search tool
-	searchTool := mcp.NewTool(
-		"search_k6_documentation",
-		mcp.WithDescription("Search up-to-date k6 documentation using SQLite FTS5 full-text search. Use proactively while authoring or validating scripts to find best practices, troubleshoot errors, discover examples/templates, and learn idiomatic k6 usage. Query semantics: space-separated terms are ANDed by default; use quotes for exact phrases; FTS5 operators (AND, OR, NEAR, parentheses) and prefix wildcards (e.g., http*) are supported. Returns structured results with title, content, and path."),
-		mcp.WithString(
-			"keywords",
-			mcp.Required(),
-			mcp.Description("FTS5 query string. Use space-separated terms (implicit AND), quotes for exact phrases, and optional FTS5 operators. Examples: 'load' → matches load; 'load testing' → matches load AND testing; '\"load testing\"' → exact phrase; 'thresholds OR checks'; 'stages NEAR/5 ramping'; 'http*' for prefix."),
-		),
-		mcp.WithNumber(
-			"max_results",
-			mcp.Description("Maximum number of results to return (default: 10, max: 20). Use 5–10 for focused results, 15–20 for broader coverage."),
-		),
-	)
-
-	s.AddTool(searchTool, h.Handle)
 }
 
 func registerRunTool(s *server.MCPServer, h handlers.ToolHandler) {
