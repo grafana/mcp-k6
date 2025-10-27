@@ -83,7 +83,7 @@ func run(ctx context.Context, logger *slog.Logger, stderr io.Writer) int {
 	tools.RegisterInfoTool(s)
 	tools.RegisterValidateTool(s)
 	tools.RegisterSearchDocumentationTool(s, db)
-	registerRunTool(s, handlers.WithToolMiddleware("run_k6_script", handlers.NewRunHandler()))
+	tools.RegisterRunTool(s)
 
 	// Register resources
 	registerBestPracticesResource(s)
@@ -114,41 +114,6 @@ func handleK6LookupError(logger *slog.Logger, stderr io.Writer, err error) int {
 	}
 
 	return 1
-}
-
-func registerRunTool(s *server.MCPServer, h handlers.ToolHandler) {
-	// Register the run tool
-	runTool := mcp.NewTool(
-		"run_k6_script",
-		mcp.WithDescription("Run a k6 test script with configurable parameters. Returns detailed execution results including performance metrics, failure analysis, and optimization recommendations."),
-		mcp.WithString(
-			"script",
-			mcp.Required(),
-			mcp.Description("The k6 script content to run (JavaScript/TypeScript). Should be a valid k6 script with proper imports and default function."),
-		),
-		mcp.WithNumber(
-			"vus",
-			mcp.Description("Number of virtual users (default: 1, max: 50). Examples: 1 for basic test, 10 for moderate load, 50 for stress test."),
-		),
-		mcp.WithString(
-			"duration",
-			mcp.Description("Test duration (default: '30s', max: '5m'). Examples: '30s', '2m', '5m'. Overridden by iterations if specified."),
-		),
-		mcp.WithNumber(
-			"iterations",
-			mcp.Description("Number of iterations per VU (overrides duration). Examples: 1 for single run, 100 for throughput test."),
-		),
-		mcp.WithObject(
-			"stages",
-			mcp.Description("Load profile stages for ramping (array of {duration, target}). Example: [{\"duration\": \"30s\", \"target\": 10}, {\"duration\": \"1m\", \"target\": 20}]"),
-		),
-		mcp.WithObject(
-			"options",
-			mcp.Description("Additional k6 options as JSON object. Example: {\"thresholds\": {\"http_req_duration\": [\"p(95)<500\"]}}"),
-		),
-	)
-
-	s.AddTool(runTool, h.Handle)
 }
 
 func registerBestPracticesResource(s *server.MCPServer) {

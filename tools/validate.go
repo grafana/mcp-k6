@@ -222,95 +222,9 @@ func validateInput(script string) error {
 	return nil
 }
 
-// createSecureTempFile creates a secure temporary file with the script content.
-func createSecureTempFile(script string) (string, func(), error) {
-	//nolint:forbidigo // Temporary file creation required for k6 validation
-	tmpFile, err := os.CreateTemp("", "k6-script-*.js")
-	if err != nil {
-		return "", nil, &ValidationError{
-			Type:    "FILE_CREATION",
-			Message: "failed to create temporary file",
-			Cause:   err,
-		}
-	}
-
-	filename := tmpFile.Name()
-	cleanup := func() {
-		//nolint:forbidigo // Cleanup of temporary file required
-		if removeErr := os.Remove(filename); removeErr != nil {
-			logging.WithComponent("validator").Warn("Failed to remove temporary file",
-				slog.String("operation", "cleanup"),
-				slog.String("error", removeErr.Error()),
-			)
-		}
-	}
-
-	if err := setupTempFile(tmpFile, script); err != nil {
-		cleanupTempFile(tmpFile)
-		return "", nil, err
-	}
-
-	return filename, cleanup, nil
-}
-
-// setupTempFile configures and writes to the temporary file.
-//
-//nolint:forbidigo // Function parameter os.File required for temp file operations
-func setupTempFile(tmpFile *os.File, script string) error {
-	// Set secure permissions (owner read/write only)
-	const secureFileMode = 0o600
-	if err := tmpFile.Chmod(secureFileMode); err != nil {
-		return &ValidationError{
-			Type:    "FILE_PERMISSION",
-			Message: "failed to set secure file permissions",
-			Cause:   err,
-		}
-	}
-
-	// Write script content
-	if _, err := tmpFile.WriteString(script); err != nil {
-		return &ValidationError{
-			Type:    "FILE_WRITE",
-			Message: "failed to write script to temporary file",
-			Cause:   err,
-		}
-	}
-
-	if err := tmpFile.Close(); err != nil {
-		return &ValidationError{
-			Type:    "FILE_CLOSE",
-			Message: "failed to close temporary file",
-			Cause:   err,
-		}
-	}
-
-	return nil
-}
-
-// cleanupTempFile safely cleans up a temporary file.
-//
-//nolint:forbidigo // Function parameter os.File required for temp file operations
-func cleanupTempFile(tmpFile *os.File) {
-	logger := logging.WithComponent("validator")
-
-	if closeErr := tmpFile.Close(); closeErr != nil {
-		logger.Warn("Failed to close temp file",
-			slog.String("operation", "cleanup"),
-			slog.String("error", closeErr.Error()),
-		)
-	}
-	//nolint:forbidigo // Cleanup of temporary file required
-	if removeErr := os.Remove(tmpFile.Name()); removeErr != nil {
-		logger.Warn("Failed to remove temp file",
-			slog.String("operation", "cleanup"),
-			slog.String("error", removeErr.Error()),
-		)
-	}
-}
-
 const (
-	// DefaultTimeout is the default timeout for k6 validation runs.
-	DefaultTimeout = 30 * time.Second
+	// ValidationTimeout is the default timeout for k6 validation runs.
+	ValidationTimeout = 30 * time.Second
 	// MaxScriptSize is the maximum allowed script size in bytes (1MB).
 	MaxScriptSize = 1024 * 1024
 )
@@ -323,7 +237,7 @@ func executeK6Validation(ctx context.Context, scriptPath string) (*ValidationRes
 	startTime := time.Now()
 
 	// Create context with timeout
-	cmdCtx, cancel := context.WithTimeout(ctx, DefaultTimeout)
+	cmdCtx, cancel := context.WithTimeout(ctx, ValidationTimeout)
 	defer cancel()
 
 	// Check if k6 is available
@@ -384,10 +298,11 @@ func executeK6Validation(ctx context.Context, scriptPath string) (*ValidationRes
 	if errors.Is(err, context.DeadlineExceeded) {
 		logger.WarnContext(ctx, "k6 validation timed out",
 			slog.Duration("timeout", ValidationTimeout))
+		result.Error = fmt.Sprintf("k6 validation timed out after %v", DefaultTimeout)
 		result.Error = fmt.Sprintf("k6 validation timed out after %v", ValidationTimeout)
 		return result, &ValidationError{
 			Type:    "TIMEOUT",
-			Message: fmt.Sprintf("k6 validation timed out after %v", DefaultTimeout),
+			Message: fmt.Sprintf("k6 validation timed out after %v", ValidationTimeout),
 			Cause:   err,
 		}
 	}
@@ -416,45 +331,6 @@ func executeK6Validation(ctx context.Context, scriptPath string) (*ValidationRes
 		Type:    "EXECUTION_ERROR",
 		Message: "failed to execute k6 command",
 		Cause:   err,
-	}
-}
-
-// executeCommand executes a command and returns stdout, stderr, exit code, and error.
-func executeCommand(cmd *exec.Cmd) (stdout, stderr string, exitCode int, err error) {
-	var stdoutBuf, stderrBuf strings.Builder
-	cmd.Stdout = &stdoutBuf
-	cmd.Stderr = &stderrBuf
-
-	err = cmd.Run()
-	stdout = stdoutBuf.String()
-	stderr = stderrBuf.String()
-
-	if err != nil {
-		var exitError *exec.ExitError
-		if errors.As(err, &exitError) {
-			exitCode = exitError.ExitCode()
-		} else {
-			exitCode = -1
-		}
-	}
-
-	if err != nil {
-		return stdout, stderr, exitCode, fmt.Errorf("command execution failed: %w", err)
-	}
-	return stdout, stderr, exitCode, nil
-}
-
-// getPathType returns a safe representation of file paths for logging
-func getPathType(path string) string {
-	switch {
-	case strings.Contains(path, "temp"), strings.Contains(path, "tmp"):
-		return "temporary"
-	case strings.HasSuffix(path, ".js"):
-		return "javascript"
-	case strings.HasSuffix(path, ".ts"):
-		return "typescript"
-	default:
-		return "other"
 	}
 }
 
@@ -643,7 +519,7 @@ func enhanceValidationResult(result *ValidationResponse, script string) {
 	result.Recommendations = removeDuplicates(result.Recommendations)
 
 	// Generate next steps
-	result.NextSteps = generateNextSteps(result)
+	result.NextSteps = generateValidationNextSteps(result)
 
 	// Add workflow integration suggestions
 	addWorkflowIntegrationSuggestions(result)
@@ -832,7 +708,7 @@ func compareSeverity(a, b string) int {
 }
 
 // generateNextSteps provides actionable next steps based on validation results
-func generateNextSteps(result *ValidationResponse) []string {
+func generateValidationNextSteps(result *ValidationResponse) []string {
 	if result.Valid && result.ExitCode == 0 {
 		steps := []string{"Your script is ready to run!"}
 
