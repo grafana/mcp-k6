@@ -26,6 +26,13 @@ import (
 	"github.com/grafana/k6-mcp/internal/logging"
 )
 
+const instructions = `
+Use the provided tools for running or validating k6 scripts, or for searching through the k6 OSS docs.
+Use the provided resources for understanding the k6 script authoring best practices, for consulting
+type definitions, or for writing Terraform configuration for Grafana k6 Cloud.
+Use the provided prompts as a good starting point for authoring complex k6 scripts.
+`
+
 var serveStdio = server.ServeStdio
 
 func main() {
@@ -64,6 +71,7 @@ func run(ctx context.Context, logger *slog.Logger, stderr io.Writer) int {
 		server.WithResourceCapabilities(true, true),
 		server.WithLogging(),
 		server.WithRecovery(),
+		server.WithInstructions(instructions),
 	)
 
 	// Register tools
@@ -203,7 +211,7 @@ func registerTerraformResource(s *server.MCPServer) {
 	)
 
 	s.AddResource(bestPracticesResource, func(ctx context.Context, request mcp.ReadResourceRequest) ([]mcp.ResourceContents, error) {
-		content, err := k6mcp.Resources.ReadFile("resources/TERRAFORM.md")
+		content, err := k6mcp.DistResources.ReadFile("dist/resources/TERRAFORM.md")
 		if err != nil {
 			return nil, fmt.Errorf("failed to read embedded Terraform resource: %w", err)
 		}

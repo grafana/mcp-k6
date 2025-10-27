@@ -18,14 +18,12 @@ CMD_PACKAGES := $(shell go list ./cmd/...)
 run: prepare ## Run the k6-mcp server
 	@go run -tags '$(GO_TAGS)' ./cmd/k6-mcp
 
-install: prepare ## Install the k6-mcp server (VERSION=dev)
-	@go install -tags '$(GO_TAGS)' -ldflags "$(LDFLAGS)" ./cmd/k6-mcp
+install: prepare install-only ## Install the k6-mcp server (VERSION=dev)
 
 install-only: ## Install the k6-mcp server without preparing assets first (VERSION=dev)
 	@go install -tags '$(GO_TAGS)' -ldflags "$(LDFLAGS)" ./cmd/k6-mcp
 
-build: prepare ## Build the k6-mcp server (VERSION=dev)
-	@go build -tags '$(GO_TAGS)' -ldflags "$(LDFLAGS)" -o k6-mcp ./cmd/k6-mcp
+build: prepare build-only ## Build the k6-mcp server (VERSION=dev)
 
 build-only: ## Build the k6-mcp server without preparing assets first (VERSION=dev)
 	@go build -tags '$(GO_TAGS)' -ldflags "$(LDFLAGS)" -o k6-mcp ./cmd/k6-mcp

@@ -31,6 +31,7 @@ import (
 const (
 	dirPermissions    = 0o700
 	gitCommandTimeout = 5 * time.Minute
+	distDir = "dist"
 
 	tfSchemaURL          = "https://raw.githubusercontent.com/grafana/terraform-provider-grafana/refs/heads/main/current_schema.json"
 	tfGrafanaProviderURI = "registry.terraform.io/grafana/grafana"
@@ -114,7 +115,7 @@ func main() {
 
 	if runTf {
 		log.Println("Starting Terraform provider resources extraction...")
-		if err := runTerraformExtractor(); err != nil {
+		if err := runTerraformExtractor(workDir); err != nil {
 			log.Fatalf("Terraform resources extraction failed: %v", err)
 		}
 		log.Println("Terraform resources extraction completed successfully")
@@ -129,7 +130,6 @@ func runIndexer(workDir string, recreate bool) error {
 		k6DocsRepo     = "https://github.com/grafana/k6-docs.git"
 		docsSourcePath = "docs/sources/k6"
 		databaseName   = "index.db"
-		distDir        = "dist"
 	)
 
 	tempDir, err := os.MkdirTemp("", "k6-docs-*")
@@ -425,7 +425,7 @@ func schemaObjectToTemplateResource(name string, schema tfSchemaObject) (templat
 	}, nil
 }
 
-func runTerraformExtractor() error {
+func runTerraformExtractor(workDir string) error {
 	log.Printf("Fetching Terraform provider schema from: %s", tfSchemaURL)
 
 	resp, err := http.Get(tfSchemaURL)
@@ -508,8 +508,13 @@ func runTerraformExtractor() error {
 		return fmt.Errorf("failed to execute template: %w", err)
 	}
 
+	distPath := filepath.Join(workDir, distDir, "resources")
+	if err := os.MkdirAll(distPath, dirPermissions); err != nil {
+		return fmt.Errorf("failed to create dist directory: %w", err)
+	}
+
 	// Write output to the destination file
-	outputPath := filepath.Join("dist", "TERRAFORM.md")
+	outputPath := filepath.Join(distPath, "TERRAFORM.md")
 	if err := os.WriteFile(outputPath, output.Bytes(), 0o600); err != nil {
 		return fmt.Errorf("failed to write output file: %w", err)
 	}
