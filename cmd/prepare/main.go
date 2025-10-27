@@ -37,7 +37,7 @@ const (
 	tfGrafanaProviderURI = "registry.terraform.io/grafana/grafana"
 )
 
-var tfK6CloudResources []string = []string{
+var tfK6CloudResources = []string{
 	"grafana_k6_installation",
 	"grafana_k6_load_test",
 	"grafana_k6_project",
@@ -55,10 +55,6 @@ var tfK6CloudDataSources = []string{
 	"grafana_k6_projects",
 	"grafana_k6_schedule",
 	"grafana_k6_schedules",
-}
-
-var tfAttributeProperties = []string{
-	"type", "description", "computed", "optional", "required",
 }
 
 func main() {
@@ -428,7 +424,8 @@ func schemaObjectToTemplateResource(name string, schema tfSchemaObject) (templat
 func runTerraformExtractor(workDir string) error {
 	log.Printf("Fetching Terraform provider schema from: %s", tfSchemaURL)
 
-	resp, err := http.Get(tfSchemaURL)
+	client := &http.Client{Timeout: 30 * time.Second}
+	resp, err := client.Get(tfSchemaURL)
 	if err != nil {
 		return fmt.Errorf("failed to fetch schema: %w", err)
 	}
