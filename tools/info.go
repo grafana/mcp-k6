@@ -4,9 +4,11 @@ package tools
 import (
 	"context"
 	"encoding/json"
+	"log/slog"
 
 	"github.com/grafana/k6-mcp/internal/buildinfo"
 	"github.com/grafana/k6-mcp/internal/k6env"
+	"github.com/grafana/k6-mcp/internal/logging"
 	"github.com/mark3labs/mcp-go/mcp"
 	"github.com/mark3labs/mcp-go/server"
 )
@@ -20,31 +22,46 @@ var InfoTool = mcp.NewTool(
 )
 
 // RegisterInfoTool registers the info tool with the MCP server.
-func RegisterInfoTool(s *server.MCPServer) {
-	s.AddTool(InfoTool, info)
+func RegisterInfoTool(
+	s *server.MCPServer,
+) {
+	s.AddTool(InfoTool, withToolLogger("info", info))
 }
 
+// HandleInfo is the handler implementation for the info tool.
+// It can be wrapped with middleware before being passed to RegisterInfoTool.
 func info(ctx context.Context, _ mcp.CallToolRequest) (*mcp.CallToolResult, error) {
+	logger := logging.LoggerFromContext(ctx)
+	logger.DebugContext(ctx, "Starting info tool execution")
+
 	// Locate the k6 executable
 	k6Info, err := k6env.Locate(ctx)
 	if err != nil {
-		//nolint:nilerr // Error is reported via the MCP error result.
+		logger.WarnContext(ctx, "Failed to locate k6 executable",
+			slog.String("error", err.Error()))
 		return mcp.NewToolResultError("Failed to locate k6 executable on the user's system; reason: " + err.Error()), nil
 	}
+	logger.DebugContext(ctx, "k6 executable located successfully")
 
 	// Extract the located k6 binary's k6Version
 	k6Version, err := k6Info.Version(ctx)
 	if err != nil {
-		//nolint:nilerr // Error is reported via the MCP error result.
+		logger.WarnContext(ctx, "Failed to get k6 version",
+			slog.String("error", err.Error()))
 		return mcp.NewToolResultError("Failed to get user's k6 binary version; reason: " + err.Error()), nil
 	}
+	logger.DebugContext(ctx, "Retrieved k6 version",
+		slog.String("k6_version", k6Version))
 
 	// Check if the user is logged in to k6 cloud
 	isLoggedIn, err := k6Info.IsLoggedIn(ctx)
 	if err != nil {
-		//nolint:nilerr // Error is reported via the MCP error result.
+		logger.WarnContext(ctx, "Failed to check k6 login status",
+			slog.String("error", err.Error()))
 		return mcp.NewToolResultError("Failed to check if k6 is logged in; reason: " + err.Error()), nil
 	}
+	logger.DebugContext(ctx, "k6 login status checked",
+		slog.Bool("logged_in", isLoggedIn))
 
 	// Create the response
 	response := InfoResponse{
@@ -56,9 +73,15 @@ func info(ctx context.Context, _ mcp.CallToolRequest) (*mcp.CallToolResult, erro
 	// Marshal the response to JSON
 	jsonResponse, err := json.Marshal(response)
 	if err != nil {
-		//nolint:nilerr // Error is reported via the MCP error result.
+		logger.ErrorContext(ctx, "Failed to marshal info response",
+			slog.String("error", err.Error()),
+			slog.Any("response", response))
 		return mcp.NewToolResultError("Failed to marshal info response; reason: " + err.Error()), nil
 	}
+
+	logger.InfoContext(ctx, "Info tool completed successfully",
+		slog.String("k6_version", k6Version),
+		slog.Bool("logged_in", isLoggedIn))
 
 	return mcp.NewToolResultText(string(jsonResponse)), nil
 }

@@ -81,9 +81,9 @@ func run(ctx context.Context, logger *slog.Logger, stderr io.Writer) int {
 
 	// Register tools
 	tools.RegisterInfoTool(s)
-	registerRunTool(s, handlers.WithToolMiddleware("run_k6_script", handlers.NewRunHandler()))
-	registerDocumentationTools(s, handlers.WithToolMiddleware("search_k6_documentation", handlers.NewFullTextSearchHandler(db)))
-	registerValidationTool(s, handlers.WithToolMiddleware("validate_k6_script", handlers.NewValidationHandler()))
+	tools.RegisterValidateTool(s)
+	tools.RegisterSearchDocumentationTool(s, db)
+	tools.RegisterRunTool(s)
 
 	// Register resources
 	registerBestPracticesResource(s)
@@ -114,74 +114,6 @@ func handleK6LookupError(logger *slog.Logger, stderr io.Writer, err error) int {
 	}
 
 	return 1
-}
-
-func registerValidationTool(s *server.MCPServer, h handlers.ToolHandler) {
-	validateTool := mcp.NewTool(
-		"validate_k6_script",
-		mcp.WithDescription("Validate a k6 script by running it with minimal configuration (1 VU, 1 iteration). Returns detailed validation results with syntax errors, runtime issues, and actionable recommendations for fixing problems."),
-		mcp.WithString(
-			"script",
-			mcp.Required(),
-			mcp.Description("The k6 script content to validate (JavaScript/TypeScript). Example: 'import http from \"k6/http\"; export default function() { http.get(\"https://httpbin.org/get\"); }'"),
-		),
-	)
-
-	s.AddTool(validateTool, h.Handle)
-}
-
-func registerDocumentationTools(s *server.MCPServer, h handlers.ToolHandler) {
-	// Register the search tool
-	searchTool := mcp.NewTool(
-		"search_k6_documentation",
-		mcp.WithDescription("Search up-to-date k6 documentation using SQLite FTS5 full-text search. Use proactively while authoring or validating scripts to find best practices, troubleshoot errors, discover examples/templates, and learn idiomatic k6 usage. Query semantics: space-separated terms are ANDed by default; use quotes for exact phrases; FTS5 operators (AND, OR, NEAR, parentheses) and prefix wildcards (e.g., http*) are supported. Returns structured results with title, content, and path."),
-		mcp.WithString(
-			"keywords",
-			mcp.Required(),
-			mcp.Description("FTS5 query string. Use space-separated terms (implicit AND), quotes for exact phrases, and optional FTS5 operators. Examples: 'load' → matches load; 'load testing' → matches load AND testing; '\"load testing\"' → exact phrase; 'thresholds OR checks'; 'stages NEAR/5 ramping'; 'http*' for prefix."),
-		),
-		mcp.WithNumber(
-			"max_results",
-			mcp.Description("Maximum number of results to return (default: 10, max: 20). Use 5–10 for focused results, 15–20 for broader coverage."),
-		),
-	)
-
-	s.AddTool(searchTool, h.Handle)
-}
-
-func registerRunTool(s *server.MCPServer, h handlers.ToolHandler) {
-	// Register the run tool
-	runTool := mcp.NewTool(
-		"run_k6_script",
-		mcp.WithDescription("Run a k6 test script with configurable parameters. Returns detailed execution results including performance metrics, failure analysis, and optimization recommendations."),
-		mcp.WithString(
-			"script",
-			mcp.Required(),
-			mcp.Description("The k6 script content to run (JavaScript/TypeScript). Should be a valid k6 script with proper imports and default function."),
-		),
-		mcp.WithNumber(
-			"vus",
-			mcp.Description("Number of virtual users (default: 1, max: 50). Examples: 1 for basic test, 10 for moderate load, 50 for stress test."),
-		),
-		mcp.WithString(
-			"duration",
-			mcp.Description("Test duration (default: '30s', max: '5m'). Examples: '30s', '2m', '5m'. Overridden by iterations if specified."),
-		),
-		mcp.WithNumber(
-			"iterations",
-			mcp.Description("Number of iterations per VU (overrides duration). Examples: 1 for single run, 100 for throughput test."),
-		),
-		mcp.WithObject(
-			"stages",
-			mcp.Description("Load profile stages for ramping (array of {duration, target}). Example: [{\"duration\": \"30s\", \"target\": 10}, {\"duration\": \"1m\", \"target\": 20}]"),
-		),
-		mcp.WithObject(
-			"options",
-			mcp.Description("Additional k6 options as JSON object. Example: {\"thresholds\": {\"http_req_duration\": [\"p(95)<500\"]}}"),
-		),
-	)
-
-	s.AddTool(runTool, h.Handle)
 }
 
 func registerBestPracticesResource(s *server.MCPServer) {
