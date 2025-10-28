@@ -20,6 +20,8 @@ type contextKey string
 const (
 	// requestIDKey is the context key for request correlation
 	requestIDKey contextKey = "request_id"
+	// loggerKey is the context key for logger instance
+	loggerKey contextKey = "logger"
 )
 
 // defaultLogger is the package-level logger instance
@@ -129,4 +131,19 @@ func WithTool(toolName string) *slog.Logger {
 // ContextWithRequestID adds a request ID to the context for log correlation
 func ContextWithRequestID(ctx context.Context, requestID string) context.Context {
 	return context.WithValue(ctx, requestIDKey, requestID)
+}
+
+// ContextWithLogger stores a logger instance in the context
+func ContextWithLogger(ctx context.Context, logger *slog.Logger) context.Context {
+	return context.WithValue(ctx, loggerKey, logger)
+}
+
+// LoggerFromContext retrieves the logger from context, falling back to default
+func LoggerFromContext(ctx context.Context) *slog.Logger {
+	if logger := ctx.Value(loggerKey); logger != nil {
+		if l, ok := logger.(*slog.Logger); ok {
+			return l
+		}
+	}
+	return defaultLogger
 }
