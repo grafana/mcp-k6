@@ -128,6 +128,14 @@ func WithTool(toolName string) *slog.Logger {
 	)
 }
 
+// WithPrompt returns a logger with prompt-specific attributes for MCP requests
+func WithPrompt(promptName string) *slog.Logger {
+	return defaultLogger.With(
+		slog.String("prompt", promptName),
+		slog.String("component", "mcp"),
+	)
+}
+
 // ContextWithRequestID adds a request ID to the context for log correlation
 func ContextWithRequestID(ctx context.Context, requestID string) context.Context {
 	return context.WithValue(ctx, requestIDKey, requestID)

@@ -21,9 +21,9 @@ import (
 	k6mcp "github.com/grafana/k6-mcp"
 	"github.com/grafana/k6-mcp/internal"
 	"github.com/grafana/k6-mcp/internal/buildinfo"
-	"github.com/grafana/k6-mcp/internal/handlers"
 	"github.com/grafana/k6-mcp/internal/k6env"
 	"github.com/grafana/k6-mcp/internal/logging"
+	"github.com/grafana/k6-mcp/prompts"
 	"github.com/grafana/k6-mcp/tools"
 )
 
@@ -91,7 +91,7 @@ func run(ctx context.Context, logger *slog.Logger, stderr io.Writer) int {
 	registerTypeDefinitionsResource(s)
 
 	// Register prompts
-	registerGenerateScriptPrompt(s, handlers.WithPromptMiddleware("generate_k6_script", handlers.NewScriptGenerator()))
+	prompts.RegisterGenerateScriptPrompt(s)
 
 	logger.Info("Starting MCP server on stdio")
 	if err := serveStdio(s); err != nil {
@@ -197,16 +197,6 @@ func registerTypeDefinitionsResource(s *server.MCPServer) {
 		}
 		return nil
 	})
-}
-
-func registerGenerateScriptPrompt(s *server.MCPServer, h handlers.PromptHandler) {
-	generateScriptPrompt := mcp.NewPrompt(
-		"generate_script",
-		mcp.WithPromptDescription("Generate a k6 script based on the user's request."),
-		mcp.WithArgument("description", mcp.ArgumentDescription("The description of the script to generate.")),
-	)
-
-	s.AddPrompt(generateScriptPrompt, h.Handle)
 }
 
 // openDB loads the database file from the embedded data, writes it to a temporary file,
