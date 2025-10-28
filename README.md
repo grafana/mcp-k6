@@ -6,21 +6,18 @@ An **experimental** MCP (Model Context Protocol) server for k6, written in Go. I
 
 ## Features
 
-### Prompts
-
-- **Script Generation** with `/generate_k6_script`: Generate production‑ready k6 test scripts from plain‑English requirements. It automatically follows modern testing practices by leveraging embedded best practices, documentation, and type definitions.
-
 ### Tools
-
 - **Script Validation**: `validate_k6_script` runs k6 scripts with minimal configuration (1 VU, 1 iteration) and returns actionable errors to help quickly produce correct code.
 - **Test Execution**: `run_k6_script` runs k6 performance tests locally with configurable VUs, duration, stages, and options, and, when possible, extracts insights from the results.
 - **Documentation Search (default)**: `search_k6_documentation` provides fast full‑text search over the official k6 docs (embedded SQLite FTS5 index) to help write modern, efficient k6 scripts.
-- **Terraform (Grafana k6 Cloud)**: `generate_k6_cloud_terraform_load_test_resource` generates a Terraform resource for Grafana Cloud k6, letting you define and provision k6 Cloud tests with the Grafana k6 Terraform provider.
 
 ### Resources
 - **Best Practices Resources**: Comprehensive k6 scripting guidelines and patterns to help you write effective, idiomatic, and correct tests.
 - **Type Definitions**: Up‑to‑date k6 TypeScript type definitions to improve accuracy and editor tooling.
+- **Terraform**: Information on how to use the [Grafana Terraform provider](https://registry.terraform.io/providers/grafana/grafana/latest) to manage k6 Cloud resources.
 
+### Prompts
+- **Script Generation** with `generate_script`: Generate production‑ready k6 test scripts from plain‑English requirements. It automatically follows modern testing practices by leveraging embedded best practices, documentation, and type definitions.
 
 ## Getting Started
 
@@ -43,8 +40,8 @@ make --version
 
 1. **Clone the repository**:
    ```bash
-   git clone https://github.com/grafana/k6-mcp
-   cd k6-mcp
+   git clone https://github.com/grafana/k6-mcp-server
+   cd k6-mcp-server
    ```
 
 2. **Prepare assets and install the server** (builds the documentation index, embeds resources, installs `k6-mcp` into your Go bin):
@@ -175,18 +172,6 @@ Returns an array of results with `title`, `content`, `path`.
 
 ## Available Resources
 
-### Best Practices Guide
-
-Access comprehensive k6 scripting best practices covering:
-- Test structure and organization
-- Performance optimization techniques
-- Error handling and validation patterns
-- Authentication and security practices
-- Browser testing guidelines
-- Modern k6 features and protocols
-
-**Resource URI:** `docs://k6/best_practices`
-
 ### Script Generation Template
 
 AI-powered k6 script generation with structured workflow:
@@ -198,94 +183,15 @@ AI-powered k6 script generation with structured workflow:
 
 **Resource URI:** `prompts://k6/generate_script`
 
+### Terraform Resources & Data Sources
+
+Information on how to set up k6 Cloud resources using Grafana's Terraform provider.
+
+**Resource URI:** `prompts://k6/terraform`
 
 ## Development
 
-### Make Commands (Recommended)
-
-```bash
-# Build and run the MCP server (generates the SQLite index if missing)
-make run
-
-# Build binary locally (generates the SQLite index if missing)
-make build
-
-# Install into your Go bin (generates the SQLite index if missing)
-make install
-
-# Optimized release build (stripped, reproducible paths)
-make release
-
-# Prepare embedded assets (docs index, types, prompts)
-make prepare
-
-# (Re)generate the embedded SQLite docs index
-make index
-
-# Collect TypeScript definitions into dist/
-make collect
-
-# Clean generated artifacts
-make clean
-
-# List available targets
-make help
-```
-
-### Manual Commands
-
-If you prefer not to use `make`:
-
-```bash
-# 1) Generate the SQLite FTS5 docs index (required for build/run because it is embedded)
-go run -tags 'fts5 sqlite_fts5' ./cmd/prepare --index-only
-
-# 2) Start the MCP server
-go run -tags 'fts5 sqlite_fts5' ./cmd/k6-mcp
-
-# Build a local binary
-go build -tags 'fts5 sqlite_fts5' -o k6-mcp ./cmd/k6-mcp
-
-# Release‑style build (macOS example)
-CGO_ENABLED=1 go build -tags 'fts5 sqlite_fts5' -trimpath -ldflags '-s -w' -o k6-mcp ./cmd/k6-mcp
-
-# Run tests
-go test ./...
-
-# Lint
-golangci-lint run
-```
-
-### Project Structure
-
-```
-├── cmd/
-│   ├── k6-mcp/               # MCP server entry point
-│   └── indexer/              # Builds the SQLite FTS5 docs index into dist/index.db
-├── dist/
-│   └── index.db              # Embedded SQLite FTS5 index (generated)
-├── internal/
-│   ├── runner/               # Test execution engine
-│   ├── search/               # Full‑text search and indexer
-│   ├── security/             # Security utilities
-│   └── validator/            # Script validation
-├── resources/                # MCP resources
-│   ├── practices/            # Best practices guide
-│   └── prompts/              # AI prompt templates
-├── python-services/          # Optional utilities (embeddings, verification)
-└── k6/scripts/               # Generated k6 scripts
-```
-
-## Security
-
-The MCP server implements comprehensive security measures:
-
-- **Input validation**: Size limits (1MB maximum) and dangerous pattern detection
-- **Secure execution**: Blocks Node.js modules, system access, and malicious code patterns
-- **File handling**: Restricted permissions (0600) and secure temporary file management
-- **Resource limits**: Command execution timeouts (30s validation, 5m tests), max 50 VUs
-- **Environment isolation**: Minimal k6 execution environment with proper cleanup
-- **Docker hardening**: Non-root user, read-only filesystem, no new privileges
+Run `make list` to get a list of available Make commands.
 
 ## Usage Examples
 
