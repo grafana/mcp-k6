@@ -36,6 +36,12 @@ tests: test ## Alias for test
 vet: prepare ## Run the vet command
 	@go vet ./...
 
+reviewable: prepare tests vet ## Run the reviewable command
+	@gofmt -l .
+	@golangci-lint run
+	@gosec -quiet ./...
+	@govulncheck ./...
+
 release: prepare ## Create a release-style build (VERSION=dev)
 	@go build -tags '$(GO_TAGS)' -trimpath -ldflags "$(LDFLAGS)" -o k6-mcp ./cmd/k6-mcp
 
