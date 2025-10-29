@@ -8,4 +8,4 @@ dist/
 **/*.claude*
 
 # Binary
-k6-mcp
+/mcp-k6

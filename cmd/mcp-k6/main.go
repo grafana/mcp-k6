@@ -15,13 +15,13 @@ import (
 
 	"github.com/mark3labs/mcp-go/server"
 
-	k6mcp "github.com/grafana/k6-mcp"
-	"github.com/grafana/k6-mcp/internal/buildinfo"
-	"github.com/grafana/k6-mcp/internal/k6env"
-	"github.com/grafana/k6-mcp/internal/logging"
-	"github.com/grafana/k6-mcp/prompts"
-	"github.com/grafana/k6-mcp/resources"
-	"github.com/grafana/k6-mcp/tools"
+	k6mcp "github.com/grafana/mcp-k6"
+	"github.com/grafana/mcp-k6/internal/buildinfo"
+	"github.com/grafana/mcp-k6/internal/k6env"
+	"github.com/grafana/mcp-k6/internal/logging"
+	"github.com/grafana/mcp-k6/prompts"
+	"github.com/grafana/mcp-k6/resources"
+	"github.com/grafana/mcp-k6/tools"
 )
 
 // Server instructions are a good opportunity to give the agent a high-level overview of the tools
@@ -102,7 +102,7 @@ func run(ctx context.Context, logger *slog.Logger, stderr io.Writer) int {
 
 func handleK6LookupError(logger *slog.Logger, stderr io.Writer, err error) int {
 	if errors.Is(err, k6env.ErrNotFound) {
-		message := "k6-mcp requires the `k6` executable on your PATH. Install k6 (https://grafana.com/docs/k6/latest/get-started/installation/) and ensure it is accessible before retrying."
+		message := "mcp-k6 requires the `k6` executable on your PATH. Install k6 (https://grafana.com/docs/k6/latest/get-started/installation/) and ensure it is accessible before retrying."
 		logger.Error("k6 executable not found on PATH", slog.String("hint", message))
 		fmt.Fprintln(stderr, message)
 	} else {
@@ -119,7 +119,7 @@ func handleK6LookupError(logger *slog.Logger, stderr io.Writer, err error) int {
 // The caller is responsible for closing the database connection and removing the temporary file.
 func openDB(dbData []byte) (db *sql.DB, dbFile *os.File, err error) {
 	// Load the search index database file from the embedded data
-	dbFile, err = os.CreateTemp("", "k6-mcp-index-*.db")
+	dbFile, err = os.CreateTemp("", "mcp-k6-index-*.db")
 	if err != nil {
 		return nil, nil, fmt.Errorf("error creating temporary database file: %w", err)
 	}

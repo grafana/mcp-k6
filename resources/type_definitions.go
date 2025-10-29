@@ -5,8 +5,8 @@ import (
 	"io/fs"
 	"strings"
 
-	k6mcp "github.com/grafana/k6-mcp"
-	"github.com/grafana/k6-mcp/internal"
+	k6mcp "github.com/grafana/mcp-k6"
+	"github.com/grafana/mcp-k6/internal"
 	"github.com/mark3labs/mcp-go/mcp"
 	"github.com/mark3labs/mcp-go/server"
 )

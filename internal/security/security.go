@@ -10,7 +10,7 @@ import (
 	"strings"
 	"time"
 
-	"github.com/grafana/k6-mcp/internal/logging"
+	"github.com/grafana/mcp-k6/internal/logging"
 )
 
 const (

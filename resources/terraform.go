@@ -4,7 +4,7 @@ import (
 	"context"
 	"fmt"
 
-	k6mcp "github.com/grafana/k6-mcp"
+	mcpk6 "github.com/grafana/mcp-k6"
 	"github.com/mark3labs/mcp-go/mcp"
 	"github.com/mark3labs/mcp-go/server"
 )
@@ -26,7 +26,7 @@ func RegisterTerraformResource(s *server.MCPServer) {
 
 // terraform is the handler for the Terraform resource.
 func terraform(_ context.Context, _ mcp.ReadResourceRequest) ([]mcp.ResourceContents, error) {
-	content, err := k6mcp.DistResources.ReadFile("dist/resources/TERRAFORM.md")
+	content, err := mcpk6.DistResources.ReadFile("dist/resources/TERRAFORM.md")
 	if err != nil {
 		return nil, fmt.Errorf("failed to read embedded Terraform resource: %w", err)
 	}

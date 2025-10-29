@@ -3,10 +3,10 @@
 // Example:
 //
 //	go build \
-//	  -ldflags "-X github.com/grafana/k6-mcp/internal/buildinfo.Version=1.3.0 \
-//	            -X github.com/grafana/k6-mcp/internal/buildinfo.Commit=abcdef1 \
-//	            -X github.com/grafana/k6-mcp/internal/buildinfo.Date=2025-08-21T12:00:00Z" \
-//	  ./cmd/k6-mcp
+//	  -ldflags "-X github.com/grafana/mcp-k6/internal/buildinfo.Version=1.3.0 \
+//	            -X github.com/grafana/mcp-k6/internal/buildinfo.Commit=abcdef1 \
+//	            -X github.com/grafana/mcp-k6/internal/buildinfo.Date=2025-08-21T12:00:00Z" \
+//	  ./cmd/mcp-k6
 package buildinfo
 
 //nolint:gochecknoglobals // Build-time variables set via -ldflags

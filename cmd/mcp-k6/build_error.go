@@ -15,9 +15,9 @@ ERROR: Missing required build tag 'fts5'
 This application requires the 'fts5' build tag to compile properly.
 
 To build or run this application, use:
-  go build -tags fts5 ./cmd/k6-mcp
-  go run -tags fts5 ./cmd/k6-mcp
-  go install -tags fts5 github.com/grafana/k6-mcp/cmd/k6-mcp
+  go build -tags fts5 ./cmd/mcp-k6
+  go run -tags fts5 ./cmd/mcp-k6
+  go install -tags fts5 github.com/grafana/mcp-k6/cmd/mcp-k6
 
 The fts5 tag is required for SQLite FTS5 full-text search functionality.
 `)
