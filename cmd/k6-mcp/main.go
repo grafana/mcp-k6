@@ -24,6 +24,7 @@ import (
 	"github.com/grafana/k6-mcp/internal/k6env"
 	"github.com/grafana/k6-mcp/internal/logging"
 	"github.com/grafana/k6-mcp/prompts"
+	"github.com/grafana/k6-mcp/resources"
 	"github.com/grafana/k6-mcp/tools"
 )
 
@@ -86,8 +87,8 @@ func run(ctx context.Context, logger *slog.Logger, stderr io.Writer) int {
 	tools.RegisterRunTool(s)
 
 	// Register resources
-	registerBestPracticesResource(s)
 	registerTerraformResource(s)
+	resources.RegisterBestPracticesResource(s)
 	registerTypeDefinitionsResource(s)
 
 	// Register prompts
@@ -116,29 +117,6 @@ func handleK6LookupError(logger *slog.Logger, stderr io.Writer, err error) int {
 	return 1
 }
 
-func registerBestPracticesResource(s *server.MCPServer) {
-	bestPracticesResource := mcp.NewResource(
-		"docs://k6/best_practices",
-		"k6 best practices",
-		mcp.WithResourceDescription("Provides a list of best practices for writing k6 scripts."),
-		mcp.WithMIMEType("text/markdown"),
-	)
-
-	s.AddResource(bestPracticesResource, func(ctx context.Context, request mcp.ReadResourceRequest) ([]mcp.ResourceContents, error) {
-		content, err := k6mcp.Resources.ReadFile("resources/practices/PRACTICES.md")
-		if err != nil {
-			return nil, fmt.Errorf("failed to read embedded best practices resource: %w", err)
-		}
-
-		return []mcp.ResourceContents{
-			mcp.TextResourceContents{
-				URI:      "docs://k6/best_practices",
-				MIMEType: "text/markdown",
-				Text:     string(content),
-			},
-		}, nil
-	})
-}
 
 func registerTerraformResource(s *server.MCPServer) {
 	bestPracticesResource := mcp.NewResource(

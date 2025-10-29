@@ -28,5 +28,5 @@ var Prompts embed.FS
 
 // Resources contains static, embedded resource files such as prompts and templates.
 //
-//go:embed resources/**
+//go:embed resources/*.md
 var Resources embed.FS
