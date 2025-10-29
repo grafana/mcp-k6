@@ -9,3 +9,6 @@ dist/
 
 # Binary
 /mcp-k6
+
+# Ignore GoReleaser output
+release/

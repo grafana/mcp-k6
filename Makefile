@@ -42,14 +42,14 @@ reviewable: prepare tests vet ## Run the reviewable command
 	@gosec -quiet ./...
 	@govulncheck ./...
 
-release: prepare ## Create a release-style build (VERSION=dev)
-	@go build -tags '$(GO_TAGS)' -trimpath -ldflags "$(LDFLAGS)" -o mcp-k6 ./cmd/mcp-k6
+release:
+	@goreleaser build --snapshot --clean
 
 prepare: ## Prepare the mcp-k6 server for distribution
 	@go run -tags '$(GO_TAGS)' ./cmd/prepare
 
 clean: ## Clean generated artifacts
-	@rm -rf dist mcp-k6 prepare
+	@rm -rf dist release k6-mcp prepare
 
 index: ## Regenerate the documentation index database
 	@go run -tags '$(GO_TAGS)' ./cmd/prepare --index-only

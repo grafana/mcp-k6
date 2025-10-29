@@ -1,0 +1,147 @@
+version: 2
+
+# Use 'release' directory for goreleaser output (dist/ is used for embedded assets)
+dist: release
+
+# Hooks to run before the build
+before:
+  hooks:
+    # Generate embedded assets (SQLite FTS5 index, TypeScript types, Terraform docs)
+    - make prepare
+
+# Build configuration
+builds:
+  - id: mcp-k6
+    main: ./cmd/mcp-k6
+    binary: mcp-k6
+
+    # Build tags required for SQLite FTS5 support
+    tags:
+      - fts5
+      - sqlite_fts5
+
+    # Inject build metadata via ldflags
+    ldflags:
+      - -s -w
+      - -X github.com/grafana/mcp-k6/internal/buildinfo.Version={{.Version}}
+      - -X github.com/grafana/mcp-k6/internal/buildinfo.Commit={{.ShortCommit}}
+      - -X github.com/grafana/mcp-k6/internal/buildinfo.Date={{.Date}}
+
+    # Enable trimpath for reproducible builds
+    flags:
+      - -trimpath
+
+    # Target platforms
+    goos:
+      - linux
+      - darwin
+      - windows
+
+    goarch:
+      - amd64
+      - arm64
+
+    # Exclude unsupported combinations
+    ignore:
+      - goos: windows
+        goarch: arm64
+
+    # CGO is required for SQLite
+    env:
+      - CGO_ENABLED=1
+
+    # Zig Cross-Compilation Configuration
+    overrides:
+      # Linux ARM64
+      - goos: linux
+        goarch: arm64
+        env:
+          - CGO_ENABLED=1
+          - CC=zig cc -target aarch64-linux-gnu
+
+      # Linux AMD64
+      - goos: linux
+        goarch: amd64
+        env:
+          - CGO_ENABLED=1
+          - CC=zig cc -target x86_64-linux-gnu
+
+      # Windows AMD64
+      # Note: Windows cross-compilation uses Zig with MinGW-compatible target
+      - goos: windows
+        goarch: amd64
+        env:
+          - CGO_ENABLED=1
+          - CC=zig cc -target x86_64-windows-gnu
+
+# Archive configuration
+archives:
+  - id: mcp-k6-archives
+    # Use tar.gz for Unix-like systems (better for curl | sh pattern), zip for Windows
+    formats: ['tar.gz']
+    format_overrides:
+      - goos: windows
+        formats: ['zip']
+
+    # Archive name template
+    name_template: "mcp-k6_{{ .Version }}_{{ .Os }}_{{ .Arch }}"
+
+    # Files to include in the archive
+    files:
+      - README.md
+      - LICENSE
+      - CLAUDE.md
+
+# Checksum configuration
+checksum:
+  name_template: "mcp-k6_{{ .Version }}_checksums.txt"
+  algorithm: sha256
+
+release:
+  github:
+    owner: grafana
+    name: mcp-k6
+
+  # Draft release (set to false for automatic publishing)
+  draft: true
+
+  # Prerelease detection
+  prerelease: auto
+
+  # Release name
+  name_template: "v{{ .Version }}"
+
+  # Release footer with installation instructions
+  footer: |
+    ## Installation
+
+    ### Quick Install (Unix-like systems)
+
+    ```bash
+    # Download and extract (replace {OS} and {ARCH} with your platform)
+    curl -L https://github.com/grafana/mcp-k6/releases/download/v{{ .Version }}/mcp-k6_{{ .Version }}_{OS}_{ARCH}.tar.gz | tar xz
+
+    # Move to PATH
+    sudo mv mcp-k6 /usr/local/bin/
+
+    # Verify installation
+    mcp-k6 --version
+    ```
+
+    ### Supported Platforms
+
+    - **macOS**: darwin_amd64, darwin_arm64
+    - **Linux**: linux_amd64, linux_arm64
+    - **Windows**: windows_amd64
+
+    ### Checksums
+
+    SHA256 checksums are available in `mcp-k6_{{ .Version }}_checksums.txt`
+
+# Snapshot configuration (for local testing)
+snapshot:
+  version_template: "{{ .Version }}-SNAPSHOT-{{ .ShortCommit }}"
+
+# Metadata
+metadata:
+  mod_timestamp: "{{ .CommitTimestamp }}"
