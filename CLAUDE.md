@@ -12,7 +12,7 @@ An experimental MCP (Model Context Protocol) server for k6, written in Go. Provi
 - **cmd/k6-mcp/main.go**: MCP server entry point that registers tools, resources, and prompts via stdio transport
 - **cmd/prepare/main.go**: Build-time tool that generates embedded assets (SQLite FTS5 docs index, TypeScript types, Terraform docs)
 - **tools/**: MCP tool implementations (validate, run, search, info) with direct registration pattern
-- **internal/handlers/**: Complex MCP operations (Terraform generation, script generation prompts)
+- **prompts/**: MCP prompt implementations (script generation)
 - **internal/search/**: Full-text search using SQLite FTS5 with embedded documentation index
 - **internal/security/**: Input validation, output sanitization, and environment security checks
 - **internal/k6env/**: k6 executable detection and version management
@@ -196,7 +196,7 @@ func myHandler(ctx context.Context, request mcp.CallToolRequest) (*mcp.CallToolR
 ## MCP Server Capabilities
 
 The server provides:
-- **Tools**: 5 tools (validate_script, run_script, search_documentation, info, generate_k6_cloud_terraform_load_test_resource)
+- **Tools**: 4 tools (validate_script, run_script, search_documentation, info)
 - **Resources**: Best practices guide + TypeScript type definitions + Terraform documentation
 - **Prompts**: Script generation prompt (generate_script)
 - **Transport**: Stdio-based MCP communication
@@ -229,11 +229,6 @@ Full-text search over embedded k6 docs using SQLite FTS5. Supports FTS5 query sy
 Returns k6 environment information (version, path, login status).
 
 **Implementation**: `tools/info.go`
-
-### generate_k6_cloud_terraform_load_test_resource
-Generates Terraform resource definition for Grafana Cloud k6 load tests.
-
-**Implementation**: `internal/handlers/terraform.go`
 
 ## Documentation Search Architecture
 

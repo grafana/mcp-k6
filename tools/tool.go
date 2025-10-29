@@ -1,3 +1,4 @@
+// Package tools provides MCP tool definitions for the k6-mcp server.
 package tools
 
 import (
