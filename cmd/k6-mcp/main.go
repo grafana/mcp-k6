@@ -10,20 +10,17 @@ import (
 	"errors"
 	"fmt"
 	"io"
-	"io/fs"
 	"log/slog"
 	"os"
-	"strings"
 
-	"github.com/mark3labs/mcp-go/mcp"
 	"github.com/mark3labs/mcp-go/server"
 
 	k6mcp "github.com/grafana/k6-mcp"
-	"github.com/grafana/k6-mcp/internal"
 	"github.com/grafana/k6-mcp/internal/buildinfo"
 	"github.com/grafana/k6-mcp/internal/k6env"
 	"github.com/grafana/k6-mcp/internal/logging"
 	"github.com/grafana/k6-mcp/prompts"
+	"github.com/grafana/k6-mcp/resources"
 	"github.com/grafana/k6-mcp/tools"
 )
 
@@ -86,9 +83,9 @@ func run(ctx context.Context, logger *slog.Logger, stderr io.Writer) int {
 	tools.RegisterRunTool(s)
 
 	// Register resources
-	registerBestPracticesResource(s)
-	registerTerraformResource(s)
-	registerTypeDefinitionsResource(s)
+	resources.RegisterBestPracticesResource(s)
+	resources.RegisterTerraformResource(s)
+	resources.RegisterTypeDefinitionsResources(s)
 
 	// Register prompts
 	prompts.RegisterGenerateScriptPrompt(s)
@@ -114,89 +111,6 @@ func handleK6LookupError(logger *slog.Logger, stderr io.Writer, err error) int {
 	}
 
 	return 1
-}
-
-func registerBestPracticesResource(s *server.MCPServer) {
-	bestPracticesResource := mcp.NewResource(
-		"docs://k6/best_practices",
-		"k6 best practices",
-		mcp.WithResourceDescription("Provides a list of best practices for writing k6 scripts."),
-		mcp.WithMIMEType("text/markdown"),
-	)
-
-	s.AddResource(bestPracticesResource, func(ctx context.Context, request mcp.ReadResourceRequest) ([]mcp.ResourceContents, error) {
-		content, err := k6mcp.Resources.ReadFile("resources/practices/PRACTICES.md")
-		if err != nil {
-			return nil, fmt.Errorf("failed to read embedded best practices resource: %w", err)
-		}
-
-		return []mcp.ResourceContents{
-			mcp.TextResourceContents{
-				URI:      "docs://k6/best_practices",
-				MIMEType: "text/markdown",
-				Text:     string(content),
-			},
-		}, nil
-	})
-}
-
-func registerTerraformResource(s *server.MCPServer) {
-	bestPracticesResource := mcp.NewResource(
-		"docs://k6/terraform",
-		"Terraform for k6 Cloud",
-		mcp.WithResourceDescription("Documentation on k6 Cloud Terraform resources using the Grafana Terraform provider."),
-		mcp.WithMIMEType("text/markdown"),
-	)
-
-	s.AddResource(bestPracticesResource, func(ctx context.Context, request mcp.ReadResourceRequest) ([]mcp.ResourceContents, error) {
-		content, err := k6mcp.DistResources.ReadFile("dist/resources/TERRAFORM.md")
-		if err != nil {
-			return nil, fmt.Errorf("failed to read embedded Terraform resource: %w", err)
-		}
-
-		return []mcp.ResourceContents{
-			mcp.TextResourceContents{
-				URI:      "docs://k6/terraform",
-				MIMEType: "text/markdown",
-				Text:     string(content),
-			},
-		}, nil
-	})
-}
-
-func registerTypeDefinitionsResource(s *server.MCPServer) {
-	_ = fs.WalkDir(k6mcp.TypeDefinitions, ".", func(path string, d fs.DirEntry, err error) error {
-		if !d.IsDir() && strings.HasSuffix(path, internal.DistDTSFileSuffix) {
-			bytes, err := k6mcp.TypeDefinitions.ReadFile(path)
-			if err != nil {
-				return err
-			}
-
-			relPath := strings.TrimPrefix(path, internal.DefinitionsPath)
-			uri := "types://k6/" + relPath
-			displayName := relPath
-
-			fileBytes := bytes
-			fileURI := uri
-			resource := mcp.NewResource(
-				fileURI,
-				displayName,
-				mcp.WithResourceDescription("Provides type definitions for k6."),
-				mcp.WithMIMEType("application/json"),
-			)
-
-			s.AddResource(resource, func(ctx context.Context, request mcp.ReadResourceRequest) ([]mcp.ResourceContents, error) {
-				return []mcp.ResourceContents{
-					mcp.TextResourceContents{
-						URI:      fileURI,
-						MIMEType: "application/json",
-						Text:     string(fileBytes),
-					},
-				}, nil
-			})
-		}
-		return nil
-	})
 }
 
 // openDB loads the database file from the embedded data, writes it to a temporary file,
