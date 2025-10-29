@@ -21,7 +21,7 @@ var TypeDefinitions embed.FS
 //go:embed dist/resources/**
 var DistResources embed.FS
 
-// Prompts contains embedded prompt files, such as prompts and templates.
+// Prompts contains embedded prompt markdown files.
 //
 //go:embed prompts/*.md
 var Prompts embed.FS
