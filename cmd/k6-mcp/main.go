@@ -87,8 +87,8 @@ func run(ctx context.Context, logger *slog.Logger, stderr io.Writer) int {
 	tools.RegisterRunTool(s)
 
 	// Register resources
-	registerTerraformResource(s)
 	resources.RegisterBestPracticesResource(s)
+	resources.RegisterTerraformResource(s)
 	registerTypeDefinitionsResource(s)
 
 	// Register prompts
@@ -115,31 +115,6 @@ func handleK6LookupError(logger *slog.Logger, stderr io.Writer, err error) int {
 	}
 
 	return 1
-}
-
-
-func registerTerraformResource(s *server.MCPServer) {
-	bestPracticesResource := mcp.NewResource(
-		"docs://k6/terraform",
-		"Terraform for k6 Cloud",
-		mcp.WithResourceDescription("Documentation on k6 Cloud Terraform resources using the Grafana Terraform provider."),
-		mcp.WithMIMEType("text/markdown"),
-	)
-
-	s.AddResource(bestPracticesResource, func(ctx context.Context, request mcp.ReadResourceRequest) ([]mcp.ResourceContents, error) {
-		content, err := k6mcp.DistResources.ReadFile("dist/resources/TERRAFORM.md")
-		if err != nil {
-			return nil, fmt.Errorf("failed to read embedded Terraform resource: %w", err)
-		}
-
-		return []mcp.ResourceContents{
-			mcp.TextResourceContents{
-				URI:      "docs://k6/terraform",
-				MIMEType: "text/markdown",
-				Text:     string(content),
-			},
-		}, nil
-	})
 }
 
 func registerTypeDefinitionsResource(s *server.MCPServer) {
