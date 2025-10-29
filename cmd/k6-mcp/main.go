@@ -10,16 +10,12 @@ import (
 	"errors"
 	"fmt"
 	"io"
-	"io/fs"
 	"log/slog"
 	"os"
-	"strings"
 
-	"github.com/mark3labs/mcp-go/mcp"
 	"github.com/mark3labs/mcp-go/server"
 
 	k6mcp "github.com/grafana/k6-mcp"
-	"github.com/grafana/k6-mcp/internal"
 	"github.com/grafana/k6-mcp/internal/buildinfo"
 	"github.com/grafana/k6-mcp/internal/k6env"
 	"github.com/grafana/k6-mcp/internal/logging"
@@ -89,7 +85,7 @@ func run(ctx context.Context, logger *slog.Logger, stderr io.Writer) int {
 	// Register resources
 	resources.RegisterBestPracticesResource(s)
 	resources.RegisterTerraformResource(s)
-	registerTypeDefinitionsResource(s)
+	resources.RegisterTypeDefinitionsResources(s)
 
 	// Register prompts
 	prompts.RegisterGenerateScriptPrompt(s)
@@ -115,41 +111,6 @@ func handleK6LookupError(logger *slog.Logger, stderr io.Writer, err error) int {
 	}
 
 	return 1
-}
-
-func registerTypeDefinitionsResource(s *server.MCPServer) {
-	_ = fs.WalkDir(k6mcp.TypeDefinitions, ".", func(path string, d fs.DirEntry, err error) error {
-		if !d.IsDir() && strings.HasSuffix(path, internal.DistDTSFileSuffix) {
-			bytes, err := k6mcp.TypeDefinitions.ReadFile(path)
-			if err != nil {
-				return err
-			}
-
-			relPath := strings.TrimPrefix(path, internal.DefinitionsPath)
-			uri := "types://k6/" + relPath
-			displayName := relPath
-
-			fileBytes := bytes
-			fileURI := uri
-			resource := mcp.NewResource(
-				fileURI,
-				displayName,
-				mcp.WithResourceDescription("Provides type definitions for k6."),
-				mcp.WithMIMEType("application/json"),
-			)
-
-			s.AddResource(resource, func(ctx context.Context, request mcp.ReadResourceRequest) ([]mcp.ResourceContents, error) {
-				return []mcp.ResourceContents{
-					mcp.TextResourceContents{
-						URI:      fileURI,
-						MIMEType: "application/json",
-						Text:     string(fileBytes),
-					},
-				}, nil
-			})
-		}
-		return nil
-	})
 }
 
 // openDB loads the database file from the embedded data, writes it to a temporary file,
