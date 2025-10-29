@@ -1,11 +1,11 @@
-// Package resources provides MCP resource definitions for the k6-mcp server.
+// Package resources provides MCP resource definitions for the mcp-k6 server.
 package resources
 
 import (
 	"context"
 	"fmt"
 
-	k6mcp "github.com/grafana/k6-mcp"
+	k6mcp "github.com/grafana/mcp-k6"
 	"github.com/mark3labs/mcp-go/mcp"
 	"github.com/mark3labs/mcp-go/server"
 )

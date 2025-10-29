@@ -6,8 +6,8 @@ import (
 	"encoding/json"
 	"log/slog"
 
-	"github.com/grafana/k6-mcp/internal/logging"
-	"github.com/grafana/k6-mcp/internal/search"
+	"github.com/grafana/mcp-k6/internal/logging"
+	"github.com/grafana/mcp-k6/internal/search"
 	"github.com/mark3labs/mcp-go/mcp"
 	"github.com/mark3labs/mcp-go/server"
 )

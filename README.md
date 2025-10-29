@@ -40,11 +40,11 @@ make --version
 
 1. **Clone the repository**:
    ```bash
-   git clone https://github.com/grafana/k6-mcp-server
-   cd k6-mcp-server
+   git clone https://github.com/grafana/mcp-k6-server
+   cd mcp-k6-server
    ```
 
-2. **Prepare assets and install the server** (builds the documentation index, embeds resources, installs `k6-mcp` into your Go bin):
+2. **Prepare assets and install the server** (builds the documentation index, embeds resources, installs `mcp-k6` into your Go bin):
    ```bash
    make install
    ```
@@ -56,7 +56,7 @@ make --version
 
 4. **Verify the binary** (optional, once `make install` has run):
    ```bash
-   k6-mcp --version
+   mcp-k6 --version
    ```
 
 Whenever docs or resources change, rebuild embeds with:
@@ -66,7 +66,7 @@ make prepare
 
 ### Editor Integrations
 
-`k6-mcp` speaks MCP over stdio. After `make install`, the `k6-mcp` binary is available on your `PATH`; you can also run `make run` in a terminal to keep the server hot during development.
+`mcp-k6` speaks MCP over stdio. After `make install`, the `mcp-k6` binary is available on your `PATH`; you can also run `make run` in a terminal to keep the server hot during development.
 
 #### Cursor IDE
 
@@ -75,8 +75,8 @@ make prepare
    ```json
    {
      "mcpServers": {
-       "k6-mcp": {
-         "command": "k6-mcp",
+       "mcp-k6": {
+         "command": "mcp-k6",
          "transport": "stdio",
          "env": {}
        }
@@ -90,7 +90,7 @@ make prepare
 
 Add the server to Claude Code with:
 ```bash
-claude mcp add --scope=user --transport=stdio k6 k6-mcp
+claude mcp add --scope=user --transport=stdio k6 mcp-k6
 ```
 Use `--scope=local` if you prefer the configuration to live inside the current project. Reload the workspace to pick up the new server.
 
@@ -100,8 +100,8 @@ Place the following snippet in your Claude Desktop MCP configuration file (creat
 ```json
 {
   "mcpServers": {
-    "k6-mcp": {
-      "command": "k6-mcp",
+    "mcp-k6": {
+      "command": "mcp-k6",
       "transport": "stdio",
       "env": {}
     }
@@ -112,15 +112,15 @@ Restart the desktop app or reload its MCP plugins afterwards.
 
 #### Codex CLI
 
-Codex CLI (experimental) supports MCP servers over stdio. Once `k6-mcp` is on your `PATH`:
+Codex CLI (experimental) supports MCP servers over stdio. Once `mcp-k6` is on your `PATH`:
 
 1. Locate your Codex configuration (see `codex help config` for the exact path on your system).
 2. Add or merge the following block under the top-level `mcpServers` key:
    ```json
    {
      "mcpServers": {
-       "k6-mcp": {
-         "command": "k6-mcp",
+       "mcp-k6": {
+         "command": "mcp-k6",
          "transport": "stdio",
          "env": {}
        }
@@ -245,10 +245,10 @@ make index
 - Try simpler queries, or quote phrases: `"load testing"`
 
 ### MCP Server Not Found
-If your editor can't find the k6-mcp server:
+If your editor can't find the mcp-k6 server:
 1. Ensure it's installed: `make install`
 2. Check your editor's MCP configuration
-3. Verify the server starts: `k6-mcp` (should show MCP server output)
+3. Verify the server starts: `mcp-k6` (should show MCP server output)
 
 ### Test Execution Failures
 If k6 tests fail to execute:

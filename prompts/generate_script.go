@@ -1,4 +1,4 @@
-// Package prompts provides MCP prompt definitions for the k6-mcp server.
+// Package prompts provides MCP prompt definitions for the mcp-k6 server.
 package prompts
 
 import (
@@ -7,8 +7,8 @@ import (
 	"log/slog"
 	"strings"
 
-	k6mcp "github.com/grafana/k6-mcp"
-	"github.com/grafana/k6-mcp/internal/logging"
+	k6mcp "github.com/grafana/mcp-k6"
+	"github.com/grafana/mcp-k6/internal/logging"
 	"github.com/mark3labs/mcp-go/mcp"
 	"github.com/mark3labs/mcp-go/server"
 )

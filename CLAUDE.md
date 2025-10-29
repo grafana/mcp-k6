@@ -9,7 +9,7 @@ An experimental MCP (Model Context Protocol) server for k6, written in Go. Provi
 ## Architecture
 
 ### Core Components
-- **cmd/k6-mcp/main.go**: MCP server entry point that registers tools, resources, and prompts via stdio transport
+- **cmd/mcp-k6/main.go**: MCP server entry point that registers tools, resources, and prompts via stdio transport
 - **cmd/prepare/main.go**: Build-time tool that generates embedded assets (SQLite FTS5 docs index, TypeScript types, Terraform docs)
 - **tools/**: MCP tool implementations (validate, run, search, info) with direct registration pattern
 - **prompts/**: MCP prompt implementations (script generation)
@@ -84,10 +84,10 @@ If you need to run commands directly:
 go run -tags 'fts5 sqlite_fts5' ./cmd/prepare --index-only
 
 # Run the MCP server
-go run -tags 'fts5 sqlite_fts5' ./cmd/k6-mcp
+go run -tags 'fts5 sqlite_fts5' ./cmd/mcp-k6
 
 # Build binary
-go build -tags 'fts5 sqlite_fts5' -o k6-mcp ./cmd/k6-mcp
+go build -tags 'fts5 sqlite_fts5' -o mcp-k6 ./cmd/mcp-k6
 
 # Run tests
 go test -tags 'fts5 sqlite_fts5' ./...
@@ -190,7 +190,7 @@ func myHandler(ctx context.Context, request mcp.CallToolRequest) (*mcp.CallToolR
 2. Define tool with exported variable: `var MyTool = mcp.NewTool(...)`
 3. Create registration function: `func RegisterMyTool(s *server.MCPServer)`
 4. Use `withToolLogger()` to wrap handler: `s.AddTool(MyTool, withToolLogger("my_tool", handler))`
-5. Register in `cmd/k6-mcp/main.go` during server initialization
+5. Register in `cmd/mcp-k6/main.go` during server initialization
 6. Add comprehensive logging at entry/exit and error points
 
 ## MCP Server Capabilities
@@ -243,7 +243,7 @@ The server uses **embedded SQLite FTS5** (full-text search) for documentation qu
 - `internal/search/index.go`: Documentation indexing logic
 - `internal/search/sqlite.go`: SQLite FTS5 query implementation
 - `internal/search/full-text.go`: Full-text search interface
-- `cmd/k6-mcp/main.go`: Database extraction and temp file management (`openDB`, `closeDB`, `removeDBFile`)
+- `cmd/mcp-k6/main.go`: Database extraction and temp file management (`openDB`, `closeDB`, `removeDBFile`)
 
 ## Working with Embedded Assets
 
@@ -283,14 +283,14 @@ k6 version
 
 ```bash
 # Clone repository
-git clone https://github.com/grafana/k6-mcp-server
-cd k6-mcp-server
+git clone https://github.com/grafana/mcp-k6-server
+cd mcp-k6-server
 
 # Prepare assets and install
 make install
 
 # Verify installation
-k6-mcp --version
+mcp-k6 --version
 ```
 
 ## Common Development Tasks

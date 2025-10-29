@@ -1,4 +1,4 @@
-// Package main provides a unified command for preparing the k6-mcp server
+// Package main provides a unified command for preparing the mcp-k6 server
 // by performing documentation indexing and type definitions collection.
 //
 //nolint:forbidigo
@@ -25,8 +25,8 @@ import (
 	"text/template"
 	"time"
 
-	"github.com/grafana/k6-mcp/internal"
-	"github.com/grafana/k6-mcp/internal/search"
+	"github.com/grafana/mcp-k6/internal"
+	"github.com/grafana/mcp-k6/internal/search"
 )
 
 const (

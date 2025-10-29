@@ -7,7 +7,7 @@ import (
 	"runtime"
 	"testing"
 
-	"github.com/grafana/k6-mcp/internal/k6env"
+	"github.com/grafana/mcp-k6/internal/k6env"
 )
 
 func TestLocateReportsExecutable(t *testing.T) {

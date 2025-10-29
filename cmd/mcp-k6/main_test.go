@@ -24,7 +24,7 @@ func TestRunFailsWhenK6Missing(t *testing.T) {
 
 	code := run(context.Background(), logger, &stderr)
 	assert.NotEqual(t, 0, code, "run should return non-zero exit code when k6 is missing")
-	assert.Contains(t, stderr.String(), "k6-mcp requires the `k6` executable")
+	assert.Contains(t, stderr.String(), "mcp-k6 requires the `k6` executable")
 }
 
 func TestRunSucceedsWithStubbedK6(t *testing.T) {

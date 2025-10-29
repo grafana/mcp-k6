@@ -1,10 +1,10 @@
 # Repository Guidelines
 
 ## Project Structure & Module Organization
-The module `github.com/grafana/k6-mcp` is split by entrypoints in `cmd/`: `k6-mcp` starts the server and `prepare` refreshes embedded assets. Feature logic lives under `internal/` (`runner`, `search`, `security`, `validator`, `logging`). Generated artifacts land in `dist/` and can be regenerated with `just prepare` or `just index`. MCP resource bundles sit in `resources/`, while sample scripts live under `k6/`.
+The module `github.com/grafana/mcp-k6` is split by entrypoints in `cmd/`: `mcp-k6` starts the server and `prepare` refreshes embedded assets. Feature logic lives under `internal/` (`runner`, `search`, `security`, `validator`, `logging`). Generated artifacts land in `dist/` and can be regenerated with `just prepare` or `just index`. MCP resource bundles sit in `resources/`, while sample scripts live under `k6/`.
 
 ## Build, Test, and Development Commands
-Use `just run` for local development; it compiles with the required SQLite FTS5 tags and launches the server after rebuilding the index if needed. `just build`, `just install`, and `just release` create binaries with embedded version metadata. `just prepare` refreshes docs, types, and the index; `just clean` removes generated output. Without `just`, fall back to `go run -tags 'fts5 sqlite_fts5' ./cmd/k6-mcp` for dev and `go build -tags 'fts5 sqlite_fts5' -o k6-mcp ./cmd/k6-mcp` for binaries.
+Use `just run` for local development; it compiles with the required SQLite FTS5 tags and launches the server after rebuilding the index if needed. `just build`, `just install`, and `just release` create binaries with embedded version metadata. `just prepare` refreshes docs, types, and the index; `just clean` removes generated output. Without `just`, fall back to `go run -tags 'fts5 sqlite_fts5' ./cmd/mcp-k6` for dev and `go build -tags 'fts5 sqlite_fts5' -o mcp-k6 ./cmd/mcp-k6` for binaries.
 
 ## Coding Style & Naming Conventions
 Target Go 1.24.4. Always format with `gofmt` (tabs, trailing newline) and maintain import order via `goimports` or `golangci-lint run --enable-only=gofmt,goimports`. Keep package names aligned with their directories, export only what other packages need, and reuse the helpers in `internal/logging` for consistent output. Document new build tags before introducing them.

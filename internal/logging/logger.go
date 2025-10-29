@@ -7,12 +7,12 @@ import (
 	"os"
 	"strings"
 
-	"github.com/grafana/k6-mcp/internal/buildinfo"
+	"github.com/grafana/mcp-k6/internal/buildinfo"
 )
 
 const (
 	// ServiceName is the service identifier for Loki labels
-	ServiceName = "k6-mcp"
+	ServiceName = "mcp-k6"
 )
 
 type contextKey string

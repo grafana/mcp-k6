@@ -1,4 +1,4 @@
-// Package tools contains MCP tool definitions exposed by the k6-mcp server.
+// Package tools contains MCP tool definitions exposed by the mcp-k6 server.
 package tools
 
 import (
@@ -6,19 +6,19 @@ import (
 	"encoding/json"
 	"log/slog"
 
-	"github.com/grafana/k6-mcp/internal/buildinfo"
-	"github.com/grafana/k6-mcp/internal/k6env"
-	"github.com/grafana/k6-mcp/internal/logging"
+	"github.com/grafana/mcp-k6/internal/buildinfo"
+	"github.com/grafana/mcp-k6/internal/k6env"
+	"github.com/grafana/mcp-k6/internal/logging"
 	"github.com/mark3labs/mcp-go/mcp"
 	"github.com/mark3labs/mcp-go/server"
 )
 
-// InfoTool exposes runtime information about k6-mcp and the local k6 environment.
+// InfoTool exposes runtime information about mcp-k6 and the local k6 environment.
 //
 //nolint:gochecknoglobals // Shared tool definition registered at startup.
 var InfoTool = mcp.NewTool(
 	"info",
-	mcp.WithDescription("Get details about the k6-mcp server, the local k6 binary, and k6 Cloud login status."),
+	mcp.WithDescription("Get details about the mcp-k6 server, the local k6 binary, and k6 Cloud login status."),
 )
 
 // RegisterInfoTool registers the info tool with the MCP server.
@@ -88,7 +88,7 @@ func info(ctx context.Context, _ mcp.CallToolRequest) (*mcp.CallToolResult, erro
 
 // InfoResponse is the response to the info tool.
 type InfoResponse struct {
-	// Version is the version of the k6-mcp server.
+	// Version is the version of the mcp-k6 server.
 	Version string `json:"version"`
 
 	// K6Version is the version of the k6 binary present in the system and

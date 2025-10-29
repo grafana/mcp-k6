@@ -1,11 +1,11 @@
-// Package tools provides MCP tool definitions for the k6-mcp server.
+// Package tools provides MCP tool definitions for the mcp-k6 server.
 package tools
 
 import (
 	"context"
 	"log/slog"
 
-	"github.com/grafana/k6-mcp/internal/logging"
+	"github.com/grafana/mcp-k6/internal/logging"
 	"github.com/mark3labs/mcp-go/mcp"
 	"github.com/mark3labs/mcp-go/server"
 )
