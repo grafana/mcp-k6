@@ -40,8 +40,8 @@ make --version
 
 1. **Clone the repository**:
    ```bash
-   git clone https://github.com/grafana/mcp-k6-server
-   cd mcp-k6-server
+   git clone https://github.com/grafana/mcp-k6
+   cd mcp-k6
    ```
 
 2. **Prepare assets and install the server** (builds the documentation index, embeds resources, installs `mcp-k6` into your Go bin):
