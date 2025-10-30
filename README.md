@@ -137,7 +137,7 @@ Add the server to Claude Code:
 
 **Docker:**
 ```bash
-claude mcp add --scope=user --transport=stdio k6 docker run --rm -i mcp-k6 -t stdio
+claude mcp add --scope=user --transport=stdio k6 docker run --rm -i mcp-k6
 ```
 
 **Native:**
