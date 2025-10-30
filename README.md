@@ -21,10 +21,35 @@ An **experimental** MCP (Model Context Protocol) server for k6, written in Go. I
 
 ## Getting Started
 
-### Prerequisites
+Choose your preferred installation method:
 
-Install the following:
+### Option 1: Docker (Recommended)
 
+The easiest way to get started. The Docker image includes k6 and all dependencies.
+
+**Prerequisites:**
+- **Docker**: Install from [docker.com](https://www.docker.com/get-started)
+
+**Installation:**
+
+1. **Clone the repository**:
+   ```bash
+   git clone https://github.com/grafana/mcp-k6
+   cd mcp-k6
+   ```
+
+2. **Build the Docker image**:
+   ```bash
+   docker build -t mcp-k6 .
+   ```
+
+That's it! The image includes k6 and the mcp-k6 server. Proceed to [Editor Integrations](#editor-integrations) to configure your editor.
+
+### Option 2: Native Installation
+
+For development or if you prefer running the server natively.
+
+**Prerequisites:**
 - **Go 1.24.4+**: For building and running the MCP server
 - **k6**: Must be installed and available in PATH for script execution
 - **GNU Make**: Provides the automation targets used by this project (typically preinstalled on macOS/Linux)
@@ -36,7 +61,7 @@ k6 version
 make --version
 ```
 
-### Install
+**Installation:**
 
 1. **Clone the repository**:
    ```bash
@@ -49,12 +74,12 @@ make --version
    make install
    ```
 
-3. **Run the server locally**:
+3. **Run the server locally** (optional):
    ```bash
    make run
    ```
 
-4. **Verify the binary** (optional, once `make install` has run):
+4. **Verify the binary** (optional):
    ```bash
    mcp-k6 --version
    ```
@@ -66,37 +91,32 @@ make prepare
 
 ### Editor Integrations
 
-`mcp-k6` speaks MCP over stdio. After `make install`, the `mcp-k6` binary is available on your `PATH`; you can also run `make run` in a terminal to keep the server hot during development.
+`mcp-k6` speaks MCP over stdio. Choose the configuration that matches your installation method.
 
 #### Cursor IDE
 
-1. Ensure the server is installed (`make install`) or running in a terminal (`make run`).
-2. Create or update `~/.cursor/mcp_servers.json` (or the profile-specific config) to include:
-   ```json
-   {
-     "mcpServers": {
-       "mcp-k6": {
-         "command": "mcp-k6",
-         "transport": "stdio",
-         "env": {}
-       }
-     }
-   }
-   ```
-3. Restart Cursor or reload the MCP configuration.
-4. Call the tools from chat (validate scripts, run load tests, search docs, generate scripts).
+Create or update `~/.cursor/mcp_servers.json` (or the profile-specific config):
 
-#### Claude Code
-
-Add the server to Claude Code with:
-```bash
-claude mcp add --scope=user --transport=stdio k6 mcp-k6
+**Docker:**
+```json
+{
+  "mcpServers": {
+    "k6": {
+      "command": "docker",
+      "args": [
+        "run",
+        "--rm",
+        "-i",
+        "mcp-k6",
+        "-t",
+        "stdio"
+      ]
+    }
+  }
+}
 ```
-Use `--scope=local` if you prefer the configuration to live inside the current project. Reload the workspace to pick up the new server.
 
-#### Claude Desktop
-
-Place the following snippet in your Claude Desktop MCP configuration file (create it if necessary):
+**Native:**
 ```json
 {
   "mcpServers": {
@@ -108,25 +128,102 @@ Place the following snippet in your Claude Desktop MCP configuration file (creat
   }
 }
 ```
+
+Restart Cursor or reload the MCP configuration, then call the tools from chat (validate scripts, run load tests, search docs, generate scripts).
+
+#### Claude Code
+
+Add the server to Claude Code:
+
+**Docker:**
+```bash
+claude mcp add --scope=user --transport=stdio k6 docker run --rm -i mcp-k6 -t stdio
+```
+
+**Native:**
+```bash
+claude mcp add --scope=user --transport=stdio k6 mcp-k6
+```
+
+Use `--scope=local` if you prefer the configuration to live inside the current project. Reload the workspace to pick up the new server.
+
+#### Claude Desktop
+
+Place one of the following snippets in your Claude Desktop MCP configuration file (create it if necessary):
+
+**Docker:**
+```json
+{
+  "mcpServers": {
+    "k6": {
+      "command": "docker",
+      "args": [
+        "run",
+        "--rm",
+        "-i",
+        "mcp-k6",
+        "-t",
+        "stdio"
+      ]
+    }
+  }
+}
+```
+
+**Native:**
+```json
+{
+  "mcpServers": {
+    "mcp-k6": {
+      "command": "mcp-k6",
+      "transport": "stdio",
+      "env": {}
+    }
+  }
+}
+```
+
 Restart the desktop app or reload its MCP plugins afterwards.
 
 #### Codex CLI
 
-Codex CLI (experimental) supports MCP servers over stdio. Once `mcp-k6` is on your `PATH`:
+Codex CLI (experimental) supports MCP servers over stdio.
 
 1. Locate your Codex configuration (see `codex help config` for the exact path on your system).
-2. Add or merge the following block under the top-level `mcpServers` key:
-   ```json
-   {
-     "mcpServers": {
-       "mcp-k6": {
-         "command": "mcp-k6",
-         "transport": "stdio",
-         "env": {}
-       }
-     }
-   }
-   ```
+2. Add or merge one of the following blocks under the top-level `mcpServers` key:
+
+**Docker:**
+```json
+{
+  "mcpServers": {
+    "k6": {
+      "command": "docker",
+      "args": [
+        "run",
+        "--rm",
+        "-i",
+        "mcp-k6",
+        "-t",
+        "stdio"
+      ]
+    }
+  }
+}
+```
+
+**Native:**
+```json
+{
+  "mcpServers": {
+    "mcp-k6": {
+      "command": "mcp-k6",
+      "transport": "stdio",
+      "env": {}
+    }
+  }
+}
+```
+
 3. Restart Codex or reload its configuration (`codex reload`) to make the new server available.
 
 
