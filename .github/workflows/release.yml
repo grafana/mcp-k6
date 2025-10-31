@@ -6,7 +6,8 @@ on:
     tags:
       - 'v*'
 
-permissions: {}
+permissions: 
+  contents: read
 
 jobs:
   # Job 1: Build Linux and Windows binaries using Zig cross-compilation on Ubuntu
