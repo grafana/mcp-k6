@@ -1,0 +1,75 @@
+version: 2
+
+# Use 'release' directory for goreleaser output (dist/ is used for embedded assets)
+dist: release
+
+# Hooks to run before the build
+before:
+  hooks:
+    # Generate embedded assets (SQLite FTS5 index, TypeScript types, Terraform docs)
+    - make prepare
+
+# Build configuration
+builds:
+  - id: mcp-k6
+    main: ./cmd/mcp-k6
+    binary: mcp-k6
+
+    # Build tags required for SQLite FTS5 support
+    tags:
+      - fts5
+      - sqlite_fts5
+
+    # Inject build metadata via ldflags
+    ldflags:
+      - -s -w
+      - -X github.com/grafana/mcp-k6/internal/buildinfo.Version={{.Version}}
+      - -X github.com/grafana/mcp-k6/internal/buildinfo.Commit={{.ShortCommit}}
+      - -X github.com/grafana/mcp-k6/internal/buildinfo.Date={{.Date}}
+
+    # Enable trimpath for reproducible builds
+    flags:
+      - -trimpath
+
+    # Target platforms - ONLY Darwin (macOS)
+    goos:
+      - darwin
+
+    goarch:
+      - amd64
+      - arm64
+
+    # CGO is required for SQLite
+    env:
+      - CGO_ENABLED=1
+
+    # No overrides needed - native compilation on macOS
+
+# Archive configuration
+archives:
+  - id: mcp-k6-archives
+    # Use tar.gz for macOS
+    formats: ['tar.gz']
+
+    # Archive name template
+    name_template: "mcp-k6_{{ .Tag }}_{{ .Os }}_{{ .Arch }}"
+
+    # Files to include in the archive
+    files:
+      - README.md
+      - LICENSE
+
+# Checksum configuration
+checksum:
+  name_template: "mcp-k6_{{ .Version }}_darwin_checksums.txt"
+  algorithm: sha256
+
+# NO release section - artifacts will be collected by the final release job
+
+# Snapshot configuration (for local testing)
+snapshot:
+  version_template: "{{ .Version }}-SNAPSHOT-{{ .ShortCommit }}"
+
+# Metadata
+metadata:
+  mod_timestamp: "{{ .CommitTimestamp }}"
