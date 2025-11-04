@@ -89,6 +89,57 @@ Whenever docs or resources change, rebuild embeds with:
 make prepare
 ```
 
+### Option 3: Quick Install Script (Linux/macOS)
+
+The fastest way to install `k6-mcp` on Linux or macOS. The install script downloads the latest release binary and installs it automatically.
+
+**Prerequisites:**
+- **k6**: Must be installed and available in PATH for script execution
+- Standard Unix tools: `curl` or `wget`, `tar`, `sha256sum` or `shasum`
+
+**Installation:**
+
+```bash
+# Two-step installation (recommended - allows inspection)
+curl -fsSL https://raw.githubusercontent.com/grafana/mcp-k6/main/install.sh -o install.sh
+sh install.sh
+
+# One-liner installation
+curl -fsSL https://raw.githubusercontent.com/grafana/mcp-k6/main/install.sh | sh
+```
+
+The installer will:
+- Auto-detect your platform and architecture
+- Download and verify the latest release
+- Install to a user directory (no sudo required by default)
+- Optionally update your PATH if needed
+
+**Advanced Options:**
+
+```bash
+# Install to custom directory
+MCP_K6_DIR=~/my-tools/bin sh install.sh
+
+# System-wide installation (requires sudo)
+MCP_K6_SYSTEM_INSTALL=1 sh install.sh
+
+# CI/automation mode (skip PATH prompts)
+MCP_K6_NO_PATH_UPDATE=1 sh install.sh
+```
+
+**Upgrading:**
+
+Re-run the install script to upgrade to the latest version:
+```bash
+curl -fsSL https://raw.githubusercontent.com/grafana/mcp-k6/main/install.sh | sh
+```
+
+**Uninstallation:**
+
+```bash
+curl -fsSL https://raw.githubusercontent.com/grafana/mcp-k6/main/uninstall.sh | sh
+```
+
 ### Editor Integrations
 
 `mcp-k6` speaks MCP over stdio. Choose the configuration that matches your installation method.
