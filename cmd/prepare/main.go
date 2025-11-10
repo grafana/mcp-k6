@@ -31,7 +31,7 @@ import (
 
 const (
 	dirPermissions    = 0o700
-	gitCommandTimeout = 5 * time.Minute
+	gitCommandTimeout = 15 * time.Minute
 	distDir           = "dist"
 
 	//nolint:lll
@@ -295,7 +295,7 @@ func cloneTypesRepository(repoURL, repoDir string) error {
 	ctx, cancel := context.WithTimeout(context.Background(), gitCommandTimeout)
 	defer cancel()
 
-	cmd := exec.CommandContext(ctx, "git", "clone", "--filter=blob:none", "--sparse", repoURL, repoDir)
+	cmd := exec.CommandContext(ctx, "git", "clone", "--filter=blob:none", "--sparse", "--depth=1", repoURL, repoDir)
 	var cloneStderr bytes.Buffer
 	cmd.Stderr = &cloneStderr
 	err := cmd.Run()
