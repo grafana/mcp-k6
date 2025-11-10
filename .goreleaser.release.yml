@@ -2,35 +2,37 @@ version: 2
 
 # This configuration is used ONLY for creating the GitHub release from pre-built artifacts.
 # It skips the build process entirely and expects archives to already exist in the release/ directory.
+# We use a separate dist directory to avoid conflicts with the pre-built artifacts.
 
-dist: release
+dist: release-output
 
 # Skip all builds - we're only creating a release from existing artifacts
 builds:
   - skip: true
 
-# Archive configuration - must match the naming from other configs
-archives:
-  - id: mcp-k6-archives
-    formats: ['tar.gz']
-    format_overrides:
-      - goos: windows
-        formats: ['zip']
-    name_template: "mcp-k6_{{ .Version }}_{{ .Os }}_{{ .Arch }}"
-    files:
-      - README.md
-      - LICENSE
-
 # Checksum configuration
+# Include all pre-built artifacts from the build jobs
 checksum:
   name_template: "mcp-k6_{{ .Version }}_checksums.txt"
   algorithm: sha256
+  extra_files:
+    - glob: release/*.tar.gz
+    - glob: release/*.zip
+    - glob: release/*.deb
+    - glob: release/*.rpm
 
 # GitHub release configuration
 release:
   github:
     owner: grafana
     name: mcp-k6
+
+  # Include all pre-built artifacts from the build jobs
+  extra_files:
+    - glob: release/*.tar.gz
+    - glob: release/*.zip
+    - glob: release/*.deb
+    - glob: release/*.rpm
 
   # Draft release (set to false for automatic publishing)
   draft: true
@@ -45,7 +47,29 @@ release:
   footer: |
     ## Installation
 
-    ### Quick Install (Unix-like systems)
+    ### Linux (Debian/Ubuntu)
+
+    ```bash
+    # Download and install .deb package (replace {ARCH} with amd64 or arm64)
+    curl -LO https://github.com/grafana/mcp-k6/releases/download/v{{ .Version }}/mcp-k6_{{ .Version }}_linux_{ARCH}.deb
+    sudo dpkg -i mcp-k6_{{ .Version }}_linux_{ARCH}.deb
+
+    # Verify installation
+    mcp-k6 --version
+    ```
+
+    ### Linux (RHEL/Fedora/CentOS)
+
+    ```bash
+    # Download and install .rpm package (replace {ARCH} with amd64 or arm64)
+    curl -LO https://github.com/grafana/mcp-k6/releases/download/v{{ .Version }}/mcp-k6_{{ .Version }}_linux_{ARCH}.rpm
+    sudo rpm -i mcp-k6_{{ .Version }}_linux_{ARCH}.rpm
+
+    # Verify installation
+    mcp-k6 --version
+    ```
+
+    ### Quick Install (All Unix-like systems)
 
     ```bash
     # Download and extract (replace {OS} and {ARCH} with your platform)
@@ -61,7 +85,7 @@ release:
     ### Supported Platforms
 
     - **macOS**: darwin_amd64, darwin_arm64
-    - **Linux**: linux_amd64, linux_arm64
+    - **Linux**: linux_amd64, linux_arm64 (tar.gz, .deb, .rpm)
     - **Windows**: windows_amd64
 
     ### Checksums

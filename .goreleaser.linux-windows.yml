@@ -83,12 +83,57 @@ archives:
         formats: ['zip']
 
     # Archive name template
-    name_template: "mcp-k6_{{ .Tag }}_{{ .Os }}_{{ .Arch }}"
+    name_template: "mcp-k6_{{ .Version }}_{{ .Os }}_{{ .Arch }}"
 
     # Files to include in the archive
     files:
       - README.md
       - LICENSE
+
+# Package configuration (.deb and .rpm)
+nfpms:
+  - id: mcp-k6-packages
+    package_name: mcp-k6
+
+    # Replace existing packages on upgrade
+    replaces:
+      - mcp-k6
+
+    # Package formats
+    formats:
+      - deb
+      - rpm
+
+    # Vendor and maintainer information
+    vendor: Grafana Labs
+    maintainer: Grafana Labs <noreply@grafana.com>
+
+    # Package metadata
+    description: |
+      An experimental MCP (Model Context Protocol) server for k6, written in Go.
+      Provides k6 script validation, test execution, fast full-text documentation
+      search (embedded SQLite FTS5), and guided script generation via MCP tools,
+      resources, and prompts.
+
+    homepage: https://github.com/grafana/mcp-k6
+    license: AGPL-3.0
+
+    # Binary installation location
+    bindir: /usr/bin
+
+    # Additional files to include
+    contents:
+      # Documentation files
+      - src: README.md
+        dst: /usr/share/doc/mcp-k6/README.md
+      - src: LICENSE
+        dst: /usr/share/doc/mcp-k6/LICENSE
+
+    # Dependencies
+    # k6 is recommended but not required (soft dependency)
+    # For .rpm and .deb packages, this creates a "Recommends" field
+    recommends:
+      - k6
 
 # Checksum configuration
 checksum:

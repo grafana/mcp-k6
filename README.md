@@ -45,7 +45,70 @@ The easiest way to get started. The Docker image includes k6 and all dependencie
 
 That's it! The image includes k6 and the mcp-k6 server. Proceed to [Editor Integrations](#editor-integrations) to configure your editor.
 
-### Option 2: Native Installation
+### Option 2: Package Installation (Linux)
+
+Pre-built packages are available for Debian/Ubuntu and RHEL/Fedora/CentOS distributions.
+
+> **Version naming:** Git tags include the `v` prefix (e.g. `v0.2.0`), but release files drop it. Replace `VERSION` below with just the numeric part (`0.2.0`).
+
+**Prerequisites:**
+- **k6** (recommended): Should be installed for script execution
+
+#### Debian/Ubuntu (.deb)
+
+Download and install the `.deb` package from the [latest release](https://github.com/grafana/mcp-k6/releases/latest):
+
+```bash
+# For amd64 (x86_64)
+curl -LO https://github.com/grafana/mcp-k6/releases/latest/download/mcp-k6_VERSION_linux_amd64.deb
+sudo dpkg -i mcp-k6_*_linux_amd64.deb
+
+# For arm64
+curl -LO https://github.com/grafana/mcp-k6/releases/latest/download/mcp-k6_VERSION_linux_arm64.deb
+sudo dpkg -i mcp-k6_*_linux_arm64.deb
+```
+
+Or install directly with `apt`:
+```bash
+# Download the package
+curl -LO https://github.com/grafana/mcp-k6/releases/latest/download/mcp-k6_VERSION_linux_amd64.deb
+
+# Install with apt (resolves dependencies)
+sudo apt install ./mcp-k6_*_linux_amd64.deb
+```
+
+#### RHEL/Fedora/CentOS (.rpm)
+
+Download and install the `.rpm` package from the [latest release](https://github.com/grafana/mcp-k6/releases/latest):
+
+```bash
+# For amd64 (x86_64)
+curl -LO https://github.com/grafana/mcp-k6/releases/latest/download/mcp-k6_VERSION_linux_amd64.rpm
+sudo rpm -i mcp-k6_*_linux_amd64.rpm
+
+# For arm64
+curl -LO https://github.com/grafana/mcp-k6/releases/latest/download/mcp-k6_VERSION_linux_arm64.rpm
+sudo rpm -i mcp-k6_*_linux_arm64.rpm
+```
+
+Or use `dnf`/`yum`:
+```bash
+# Fedora/RHEL 8+
+sudo dnf install https://github.com/grafana/mcp-k6/releases/latest/download/mcp-k6_VERSION_linux_amd64.rpm
+
+# CentOS/RHEL 7
+sudo yum install https://github.com/grafana/mcp-k6/releases/latest/download/mcp-k6_VERSION_linux_amd64.rpm
+```
+
+**Verify installation:**
+```bash
+mcp-k6 --version
+```
+
+The binary is installed to `/usr/bin/mcp-k6`. Proceed to [Editor Integrations](#editor-integrations) to configure your editor.
+
+
+### Option 3: Native Installation
 
 For development or if you prefer running the server natively.
 

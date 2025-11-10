@@ -115,107 +115,17 @@ jobs:
           echo "Contents of release/ directory:"
           ls -lhR release/
 
-      - name: Merge checksums
-        run: |
-          # Find all checksum files
-          if ls release/*checksums.txt 1> /dev/null 2>&1; then
-            echo "Found checksum files:"
-            ls -lh release/*checksums.txt
+      - name: Setup Go
+        uses: actions/setup-go@v6
+        with:
+          go-version-file: 'go.mod'
+          cache: false
 
-            # Combine all checksum files into one
-            cat release/*checksums.txt | sort > release/mcp-k6_checksums.txt
-
-            echo "Merged checksums:"
-            cat release/mcp-k6_checksums.txt
-
-            # Remove individual checksum files
-            find release/ -name '*checksums.txt' -not -name 'mcp-k6_checksums.txt' -delete
-          else
-            echo "Warning: No checksum files found!"
-          fi
-
-      - name: Determine version
-        id: version
-        run: |
-          if [[ $GITHUB_REF == refs/tags/* ]]; then
-            VERSION=${GITHUB_REF#refs/tags/}
-          else
-            VERSION=$(git describe --tags --always --dirty)
-          fi
-          echo "version=$VERSION" >> $GITHUB_OUTPUT
-          echo "Version: $VERSION"
-
-      - name: Validate artifacts
-        env:
-          VERSION: ${{ steps.version.outputs.version }}
-        run: |
-          echo "Validating expected artifacts for version: $VERSION"
-          EXPECTED_PLATFORMS=("linux_amd64" "linux_arm64" "darwin_amd64" "darwin_arm64" "windows_amd64")
-          MISSING=0
-
-          for platform in "${EXPECTED_PLATFORMS[@]}"; do
-            if [[ $platform == windows_* ]]; then
-              EXT=".zip"
-            else
-              EXT=".tar.gz"
-            fi
-
-            ARCHIVE="release/mcp-k6_${VERSION}_${platform}${EXT}"
-            if [ ! -f "$ARCHIVE" ]; then
-              echo "❌ ERROR: Missing expected artifact: $ARCHIVE"
-              MISSING=1
-            else
-              echo "✅ Found: $ARCHIVE ($(du -h "$ARCHIVE" | cut -f1))"
-            fi
-          done
-
-          if [ $MISSING -eq 1 ]; then
-            echo ""
-            echo "ERROR: One or more expected artifacts are missing!"
-            exit 1
-          fi
-
-          echo ""
-          echo "✅ All expected artifacts found!"
-
-      - name: Create GitHub Release
+      - name: Create GitHub Release with GoReleaser
+        uses: goreleaser/goreleaser-action@e435ccd777264be153ace6237001ef4d979d3a7a # v6.4.0
+        with:
+          distribution: goreleaser
+          version: "~> v2"
+          args: release --config .goreleaser.release.yml
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
-          VERSION: ${{ steps.version.outputs.version }}
-        run: |
-          # Create release notes
-          cat > release_notes.md <<EOF
-          ## Installation
-
-          ### Quick Install (Unix-like systems)
-
-          \`\`\`bash
-          # Download and extract (replace {OS} and {ARCH} with your platform)
-          curl -L https://github.com/grafana/mcp-k6/releases/download/${VERSION}/mcp-k6_${VERSION}_{OS}_{ARCH}.tar.gz | tar xz
-
-          # Move to PATH
-          sudo mv mcp-k6 /usr/local/bin/
-
-          # Verify installation
-          mcp-k6 --version
-          \`\`\`
-
-          ### Supported Platforms
-
-          - **macOS**: darwin_amd64, darwin_arm64
-          - **Linux**: linux_amd64, linux_arm64
-          - **Windows**: windows_amd64
-
-          ### Checksums
-
-          SHA256 checksums are available in \`mcp-k6_checksums.txt\`
-          EOF
-
-          # Create the release
-          gh release create "$VERSION" \
-            --draft \
-            --title "$VERSION" \
-            --notes-file release_notes.md \
-            release/*.tar.gz \
-            release/*.zip \
-            release/mcp-k6_checksums.txt
