@@ -49,6 +49,8 @@ That's it! The image includes k6 and the mcp-k6 server. Proceed to [Editor Integ
 
 Pre-built packages are available for Debian/Ubuntu and RHEL/Fedora/CentOS distributions.
 
+> **Version naming:** Git tags include the `v` prefix (e.g. `v0.2.0`), but release files drop it. Replace `VERSION` below with just the numeric part (`0.2.0`).
+
 **Prerequisites:**
 - **k6** (recommended): Should be installed for script execution
 

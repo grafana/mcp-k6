@@ -83,7 +83,7 @@ archives:
         formats: ['zip']
 
     # Archive name template
-    name_template: "mcp-k6_{{ .Tag }}_{{ .Os }}_{{ .Arch }}"
+    name_template: "mcp-k6_{{ .Version }}_{{ .Os }}_{{ .Arch }}"
 
     # Files to include in the archive
     files:

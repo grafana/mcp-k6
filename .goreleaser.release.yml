@@ -73,7 +73,7 @@ release:
 
     ```bash
     # Download and extract (replace {OS} and {ARCH} with your platform)
-    curl -L https://github.com/grafana/mcp-k6/releases/download/v{{ .Version }}/mcp-k6_v{{ .Version }}_{OS}_{ARCH}.tar.gz | tar xz
+    curl -L https://github.com/grafana/mcp-k6/releases/download/v{{ .Version }}/mcp-k6_{{ .Version }}_{OS}_{ARCH}.tar.gz | tar xz
 
     # Move to PATH
     sudo mv mcp-k6 /usr/local/bin/
