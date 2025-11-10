@@ -131,8 +131,7 @@ nfpms:
 
     # Dependencies
     # k6 is recommended but not required (soft dependency)
-    # For .deb packages, this creates a "Recommends" field
-    # For .rpm packages, this creates a "Recommends" field
+    # For .rpm and .deb packages, this creates a "Recommends" field
     recommends:
       - k6
 
