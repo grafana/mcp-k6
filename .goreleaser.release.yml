@@ -33,6 +33,7 @@ release:
     - glob: release/*.zip
     - glob: release/*.deb
     - glob: release/*.rpm
+    - glob: release/*.rb
 
   # Draft release (set to false for automatic publishing)
   draft: true
@@ -46,6 +47,21 @@ release:
   # Release footer with installation instructions
   footer: |
     ## Installation
+
+    ### Homebrew (macOS/Linux)
+
+    ```bash
+    # Download the formula
+    curl -LO https://github.com/grafana/mcp-k6/releases/download/v{{ .Version }}/mcp-k6.rb
+
+    # Install from local file
+    brew install ./mcp-k6.rb
+
+    # Verify installation
+    mcp-k6 --version
+    ```
+
+    **Note:** Tap installation (`brew install grafana/grafana/mcp-k6`) will be available after the formula is merged into [grafana/homebrew-grafana](https://github.com/grafana/homebrew-grafana).
 
     ### Linux (Debian/Ubuntu)
 

@@ -64,6 +64,38 @@ checksum:
   name_template: "mcp-k6_{{ .Version }}_darwin_checksums.txt"
   algorithm: sha256
 
+# Homebrew formula generation
+brews:
+  - name: mcp-k6
+    description: "An experimental MCP (Model Context Protocol) server for k6"
+    homepage: "https://github.com/grafana/mcp-k6"
+    license: "AGPL-3.0"
+
+    # Generate formula but don't push to tap (manual PR workflow)
+    skip_upload: true
+
+    # Target tap for manual PR submission
+    repository:
+      owner: grafana
+      name: homebrew-grafana
+
+    # Commit metadata (for reference in generated formula)
+    commit_author:
+      name: github-actions[bot]
+      email: github-actions[bot]@users.noreply.github.com
+
+    # k6 is required for script execution
+    dependencies:
+      - name: k6
+
+    # Installation instructions
+    install: |
+      bin.install "mcp-k6"
+
+    # Test to verify installation
+    test: |
+      system "#{bin}/mcp-k6", "--version"
+
 # NO release section - artifacts will be collected by the final release job
 
 # Snapshot configuration (for local testing)
