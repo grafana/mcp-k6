@@ -30,20 +30,12 @@ The easiest way to get started. The Docker image includes k6 and all dependencie
 **Prerequisites:**
 - **Docker**: Install from [docker.com](https://www.docker.com/get-started)
 
-**Installation:**
-
-1. **Clone the repository**:
+**Pull the official image**:
    ```bash
-   git clone https://github.com/grafana/mcp-k6
-   cd mcp-k6
+   docker pull grafana/mcp-k6:latest
    ```
 
-2. **Build the Docker image**:
-   ```bash
-   docker build -t mcp-k6 .
-   ```
-
-That's it! The image includes k6 and the mcp-k6 server. Proceed to [Editor Integrations](#editor-integrations) to configure your editor.
+That's it! You're ready to run the containerized server. Proceed to [Editor Integrations](#editor-integrations) to configure your editor.
 
 ### Option 2: Package Installation (Linux)
 
@@ -170,7 +162,7 @@ Create or update `~/.cursor/mcp_servers.json` (or the profile-specific config):
         "run",
         "--rm",
         "-i",
-        "mcp-k6",
+        "grafana/mcp-k6",
         "-t",
         "stdio"
       ]
@@ -224,7 +216,7 @@ Place one of the following snippets in your Claude Desktop MCP configuration fil
         "run",
         "--rm",
         "-i",
-        "mcp-k6",
+        "grafana/mcp-k6",
         "-t",
         "stdio"
       ]
@@ -265,7 +257,7 @@ Codex CLI (experimental) supports MCP servers over stdio.
         "run",
         "--rm",
         "-i",
-        "mcp-k6",
+        "grafana/mcp-k6",
         "-t",
         "stdio"
       ]
