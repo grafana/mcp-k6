@@ -33,7 +33,7 @@ release:
     - glob: release/*.zip
     - glob: release/*.deb
     - glob: release/*.rpm
-    - glob: release/*.rb
+    - glob: release/homebrew/*.rb
 
   # Draft release (set to false for automatic publishing)
   draft: true
