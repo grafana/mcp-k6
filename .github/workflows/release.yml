@@ -129,3 +129,41 @@ jobs:
           args: release --config .goreleaser.release.yml
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+
+  docker:
+    name: Publish Docker Image
+    needs: [create-release]
+    runs-on: ubuntu-latest
+    permissions:
+      id-token: write
+      contents: read
+    steps:
+      - name: Checkout
+        uses: actions/checkout@08c6903cd8c0fde910a37f88322edcfb5dd907a8 # v5
+        with:
+          fetch-depth: 0
+          persist-credentials: false
+
+      - name: Determine tag/version
+        id: tag
+        run: |
+          TAG=$(git describe --tags --exact-match 2>/dev/null || echo "${GITHUB_REF_NAME}")
+          VERSION=${TAG#v}
+          echo "version=$VERSION" >> $GITHUB_OUTPUT
+          if [[ ! "$VERSION" =~ (rc|alpha|beta|pre|dev) ]]; then
+            echo "is_stable=true" >> $GITHUB_OUTPUT
+          else
+            echo "is_stable=false" >> $GITHUB_OUTPUT
+          fi
+
+      - name: Build and Push to Docker Hub
+        uses: grafana/shared-workflows/actions/build-push-to-dockerhub@74b7ce2ebd577c25266d972683e376d9f62d0b07 # build-push-to-dockerhub/v0.4.0
+        with:
+          context: .
+          file: ./Dockerfile
+          repository: grafana/mcp-k6
+          platforms: linux/amd64,linux/arm64
+          tags: |
+            ${{ steps.tag.outputs.is_stable == 'true' && 'latest' || '' }}
+            ${{ steps.tag.outputs.version }}
+          push: true
