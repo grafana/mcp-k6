@@ -74,11 +74,11 @@ Download and install the `.deb` package from the [latest release](https://github
 ```bash
 # For amd64 (x86_64)
 curl -LO https://github.com/grafana/mcp-k6/releases/latest/download/mcp-k6_VERSION_linux_amd64.deb
-sudo dpkg -i mcp-k6_*_linux_amd64.deb
+sudo dpkg -i mcp-k6_0.2.0_linux_amd64.deb
 
 # For arm64
 curl -LO https://github.com/grafana/mcp-k6/releases/latest/download/mcp-k6_VERSION_linux_arm64.deb
-sudo dpkg -i mcp-k6_*_linux_arm64.deb
+sudo dpkg -i mcp-k6_0.2.0_linux_arm64.deb
 ```
 
 Or install directly with `apt`:
@@ -87,7 +87,7 @@ Or install directly with `apt`:
 curl -LO https://github.com/grafana/mcp-k6/releases/latest/download/mcp-k6_VERSION_linux_amd64.deb
 
 # Install with apt (resolves dependencies)
-sudo apt install ./mcp-k6_*_linux_amd64.deb
+sudo apt install ./mcp-k6_0.2.0_linux_amd64.deb
 ```
 
 #### RHEL/Fedora/CentOS (.rpm)
@@ -97,11 +97,11 @@ Download and install the `.rpm` package from the [latest release](https://github
 ```bash
 # For amd64 (x86_64)
 curl -LO https://github.com/grafana/mcp-k6/releases/latest/download/mcp-k6_VERSION_linux_amd64.rpm
-sudo rpm -i mcp-k6_*_linux_amd64.rpm
+sudo rpm -i mcp-k6_0.2.0_linux_amd64.rpm
 
 # For arm64
 curl -LO https://github.com/grafana/mcp-k6/releases/latest/download/mcp-k6_VERSION_linux_arm64.rpm
-sudo rpm -i mcp-k6_*_linux_arm64.rpm
+sudo rpm -i mcp-k6_0.2.0_linux_arm64.rpm
 ```
 
 Or use `dnf`/`yum`:
