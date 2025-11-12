@@ -37,27 +37,21 @@ The easiest way to get started. The Docker image includes k6 and all dependencie
 
 That's it! You're ready to run the containerized server. Proceed to [Editor Integrations](#editor-integrations) to configure your editor.
 
-### Option 2: Homebrew (macOS/Linux)
+### Option 2: Homebrew macOS
 
 Install mcp-k6 using Homebrew. k6 will be automatically installed as a dependency.
 
 **Installation:**
 
 ```bash
-# Download the formula
-curl -LO https://github.com/grafana/mcp-k6/releases/latest/download/mcp-k6.rb
+# Add the grafana homebrew tap repository
+brew tap grafana/grafana
 
-# Install from local file
-brew install ./mcp-k6.rb
+# Install mcp-k6
+brew install mcp-k6
 
 # Verify installation
 mcp-k6 --version
-```
-
-**Note:** Once the formula is merged into the [grafana/homebrew-grafana](https://github.com/grafana/homebrew-grafana) tap, you'll be able to install directly with:
-
-```bash
-brew install grafana/grafana/mcp-k6
 ```
 
 To update to a newer version, download and install the latest formula again, or use `brew upgrade` if installed from the tap.
