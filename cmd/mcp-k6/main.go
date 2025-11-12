@@ -89,6 +89,7 @@ func run(ctx context.Context, logger *slog.Logger, stderr io.Writer) int {
 
 	// Register prompts
 	prompts.RegisterGenerateScriptPrompt(s)
+	prompts.RegisterConvertPlaywrightScriptPrompt(s)
 
 	logger.Info("Starting MCP server on stdio")
 	if err := serveStdio(s); err != nil {
