@@ -70,24 +70,24 @@ Create a k6 script that:
 - Includes thresholds suited to the flow (for example, web vitals if relevant).
 - Adds concise comments only for non-obvious logic.
 
-### Step 4: File System Preparation
+### Step 5: File System Preparation
 IMPORTANT: Before saving the script, you must:
 - Create the k6/scripts directory structure if it doesn't exist (use mkdir -p k6/scripts)
 - Generate a descriptive filename based on the user's request (e.g., browser-test.js, user-login-test.js)
 - Ensure the filename follows k6 naming conventions (lowercase, hyphens, .js extension)
 
-### Step 5: Save Script to Disk
+### Step 6: Save Script to Disk
 CRITICAL: You must save the generated script to the k6/scripts folder:
 - Use the Write tool to save the script to k6/scripts/[descriptive-filename].js
 - The script must be accessible to the user in their file system
 - Include the full file path in your response so the user knows where to find it
 
-### Step 6: Quality Validation
+### Step 7: Quality Validation
 - Use the "validate_script" tool to check syntax and basic functionality.
 - Verify the script addresses all functional checks in the user's Playwright script.
 - Ensure adherence to best practices and note any necessary deviations.
 
-### Step 7: Final Verification
+### Step 8: Final Verification
 Before presenting the script, confirm:
 - Generated script is on parity with the input Playwright script
 - All tests from the Playwright script are reflected in the k6 browser script
@@ -97,7 +97,7 @@ Before presenting the script, confirm:
 - Appropriate test configuration (VUs, duration, thresholds) is included
 - The script file has been saved to k6/scripts/
 
-### Step 8: Execution Offer
+### Step 9: Execution Offer
 If validation succeeds, offer to run the script using the "run_script" tool with:
 - Suggested test parameters based on the script's purpose
 - Explanation of what the test will validate
