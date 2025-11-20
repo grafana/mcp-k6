@@ -122,7 +122,7 @@ Present your response in this structure:
 ## SUCCESS CRITERIA
 - Script executes without syntax errors
 - Generated script(s) is on parity with the input Playwright script
-- All tests from the playwright script are reflected in the k6 browser script
+- All tests from the Playwright script are reflected in the k6 browser script
 - Code follows documented best practices
 - Script is production-ready and maintainable
 - Script is saved to k6/scripts/ folder and accessible to the user
