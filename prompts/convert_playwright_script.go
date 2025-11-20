@@ -135,12 +135,14 @@ func resolvePlaywrightScriptArgument(ctx context.Context, value string) (string,
 	return value, nil
 }
 
+//nolint:forbidigo // Controlled file access required for prompt inputs.
 func readPlaywrightScriptFromFile(ctx context.Context, path string) (string, error) {
 	normalizedPath, err := normalizeFilePath(path)
 	if err != nil {
 		return "", fmt.Errorf("invalid file path %q: %w", path, err)
 	}
 
+	// #nosec G304 -- normalizedPath is sanitized before file access.
 	data, err := os.ReadFile(normalizedPath)
 	if err != nil {
 		return "", fmt.Errorf("failed to read Playwright script file %q: %w", normalizedPath, err)
@@ -154,10 +156,11 @@ func readPlaywrightScriptFromFile(ctx context.Context, path string) (string, err
 	return string(data), nil
 }
 
+//nolint:forbidigo
 func tryReadPlaywrightScriptFromFile(ctx context.Context, candidate string) (string, bool, error) {
 	normalizedPath, err := normalizeFilePath(candidate)
 	if err != nil {
-		return "", false, nil
+		return "", false, fmt.Errorf("invalid candidate path %q: %w", candidate, err)
 	}
 
 	info, err := os.Stat(normalizedPath)
@@ -172,6 +175,7 @@ func tryReadPlaywrightScriptFromFile(ctx context.Context, candidate string) (str
 		return "", false, nil
 	}
 
+	// #nosec G304 -- normalizedPath is sanitized before file access.
 	data, err := os.ReadFile(normalizedPath)
 	if err != nil {
 		return "", false, fmt.Errorf("failed to read candidate script file %q: %w", normalizedPath, err)
@@ -194,7 +198,7 @@ func normalizeFilePath(path string) (string, error) {
 	}
 
 	if strings.HasPrefix(trimmed, "~") {
-		home, err := os.UserHomeDir()
+		home, err := resolveHomeDir()
 		if err != nil {
 			return "", fmt.Errorf("unable to resolve home directory: %w", err)
 		}
@@ -203,4 +207,23 @@ func normalizeFilePath(path string) (string, error) {
 	}
 
 	return filepath.Clean(trimmed), nil
+}
+
+//nolint:forbidigo // HOME resolution relies on environment variables.
+func resolveHomeDir() (string, error) {
+	if home := os.Getenv("HOME"); home != "" {
+		return home, nil
+	}
+
+	if userProfile := os.Getenv("USERPROFILE"); userProfile != "" {
+		return userProfile, nil
+	}
+
+	drive := os.Getenv("HOMEDRIVE")
+	path := os.Getenv("HOMEPATH")
+	if drive != "" && path != "" {
+		return filepath.Join(drive, path), nil
+	}
+
+	return "", fmt.Errorf("home directory not set in environment")
 }
