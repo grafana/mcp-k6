@@ -90,7 +90,7 @@ CRITICAL: You must save the generated script to the k6/scripts folder:
 ### Step 7: Final Verification
 Before presenting the script, confirm:
 - Generated script is on parity with the input Playwright script
-- All tests from the playwright script are reflected in the k6 browser script
+- All tests from the Playwright script are reflected in the k6 browser script
 - All user requirements are implemented correctly
 - The script follows k6 best practices and modern patterns
 - Code is well-documented and maintainable
