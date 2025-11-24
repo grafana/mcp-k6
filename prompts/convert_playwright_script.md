@@ -26,6 +26,7 @@ Follow these steps to ensure high-quality, accurate, and maintainable output:
 - Primary docs to cite:
   - Migrate from Playwright to k6: https://grafana.com/docs/k6/latest/using-k6-browser/migrate-from-playwright-to-k6/
   - Playwright APIs in k6: https://grafana.com/docs/k6/latest/using-k6-browser/playwright-apis-in-k6/
+  - k6 browser modules metrics: https://grafana.com/docs/k6/latest/using-k6-browser/metrics/
 
 ### Step 1: Research & Discovery
 - Call "info" to detect the installed k6 version to reason about feature availability.
@@ -38,6 +39,9 @@ Follow these steps to ensure high-quality, accurate, and maintainable output:
 
 ### Step 2: Best Practices Review
 - Read "docs://k6/best_practices".
+- Read: https://grafana.com/docs/k6/latest/using-k6-browser/recommended-practices/
+- Prefer using the `k6-testing` jslib instead of `check` where possible: https://jslib.k6.io/k6-testing/{latest-version}/index.js
+- If `check` is a better fit, use the `check()` function from `"https://jslib.k6.io/k6-utils/1.5.0/index.js"` specifically as it supports async/await.
 - Focus on relevant items: scenarios, thresholds, checks, grouping, sleep/think time, page objects, web vitals, cleanup, and code clarity.
 
 ### Step 3: Mapping & Design
@@ -65,9 +69,13 @@ export const options = {
 Create a k6 script that:
 - Uses the `k6/browser` module and idiomatic APIs verified against "types://k6/**".
 - Implements realistic flows equivalent to the Playwright script (navigation, interactions, waits).
-- Uses `group()` for structure, `check()` for validations, `sleep()` for think time.
+- Do not use `group()` for structure as it is not supported by the browser module.
+- Use `sleep()` for think time.
 - Cleans up resources (`page.close()`, `context.close()`) and never opens multiple contexts concurrently.
-- Includes thresholds suited to the flow (for example, web vitals if relevant).
+- Includes thresholds suited to the flow (for example, web vitals if relevant):
+  - The `browser_web_vital_cls` metric should be under 2.5 secs for good rating, under 4 secs for needs improvement and anything above is poor
+  - The `browser_web_vital_inp` metric should be under 200 ms for good rating, under 500 ms for needs improvement and anything above is poor
+  - The `browser_web_vital_cls` metric should be under 0.1 for good rating, under 0.25 for needs improvement and anything above is poor (no unit of measurement for this web vital)
 - Adds concise comments only for non-obvious logic.
 
 ### Step 5: File System Preparation
@@ -106,7 +114,7 @@ If validation succeeds, offer to run the script using the "run_script" tool with
 ## CONSTRAINTS & SAFETY
 - Context window discipline: keep research summary to essentials; don't paste large docs; include only the final script plus concise comments.
 - Use only APIs present in "types://k6/**" and documented via "search_documentation". Do not invent missing APIs.
-- If a Playwright API is unsupported, implement the closest supported pattern or clearly note an equivalent fallback, with a brief rationale.
+- If a Playwright API is unsupported, implement the closest supported pattern or clearly note an equivalent fallback, with a brief rationale. If there isn't one already, consider suggesting to the user opening a github issue on the grafana/k6 repository asking for support for that specific feature.
 - Respect k6 browser constraints: only one browser context at a time; close existing contexts before opening new ones.
 - Follow repository naming/formatting conventions. Keep scripts readable and maintainable.
 
