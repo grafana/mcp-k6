@@ -19,6 +19,7 @@ import (
 	"github.com/grafana/mcp-k6/internal/buildinfo"
 	"github.com/grafana/mcp-k6/internal/k6env"
 	"github.com/grafana/mcp-k6/internal/logging"
+	"github.com/grafana/mcp-k6/internal/sections"
 	"github.com/grafana/mcp-k6/prompts"
 	"github.com/grafana/mcp-k6/resources"
 	"github.com/grafana/mcp-k6/tools"
@@ -68,6 +69,25 @@ func run(ctx context.Context, logger *slog.Logger, stderr io.Writer) int {
 	defer closeDB(logger, db)
 	defer removeDBFile(logger, dbFile)
 
+	// Load sections index
+	logger.Info("Loading sections index")
+	sectionsIdx, err := sections.LoadJSON(k6mcp.SectionsIndex)
+	if err != nil {
+		logger.Error("Error loading sections index", "error", err)
+		_, _ = fmt.Fprintf(stderr, "Failed to load sections index: %v\n", err)
+		return 1
+	}
+	finder := sections.NewFinder(sectionsIdx)
+
+	totalSections := 0
+	for _, secs := range sectionsIdx.Sections {
+		totalSections += len(secs)
+	}
+	logger.Info("Loaded sections index",
+		slog.Int("version_count", len(sectionsIdx.Versions)),
+		slog.Int("total_sections", totalSections),
+		slog.String("latest_version", sectionsIdx.Latest))
+
 	s := server.NewMCPServer(
 		"k6",
 		buildinfo.Version,
@@ -83,6 +103,7 @@ func run(ctx context.Context, logger *slog.Logger, stderr io.Writer) int {
 	tools.RegisterSearchDocumentationTool(s, db)
 	tools.RegisterRunTool(s)
 	tools.RegisterSearchTerraformTool(s)
+	tools.RegisterListSectionsTool(s, finder)
 
 	// Register resources
 	resources.RegisterBestPracticesResource(s)

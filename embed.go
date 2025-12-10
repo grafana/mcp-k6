@@ -24,3 +24,14 @@ var Prompts embed.FS
 //
 //go:embed resources/*.md
 var Resources embed.FS
+
+// SectionsIndex contains the JSON index of documentation sections for all embedded k6 versions.
+//
+//go:embed dist/sections.json
+var SectionsIndex []byte
+
+// MarkdownFiles contains embedded markdown documentation files for all embedded k6 versions.
+// Files are organized as: dist/markdown/{version}/**/*.md
+//
+//go:embed all:dist/markdown
+var MarkdownFiles embed.FS

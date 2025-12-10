@@ -13,7 +13,7 @@ LDFLAGS := -s -w -X github.com/grafana/mcp-k6/internal/buildinfo.Version=$(VERSI
 
 CMD_PACKAGES := $(shell go list ./cmd/...)
 
-.PHONY: run install install-only build build-only release prepare clean index collect help list tests
+.PHONY: run install install-only build build-only release prepare clean index collect sections terraform help list tests
 
 run: prepare ## Run the mcp-k6 server
 	@go run -tags '$(GO_TAGS)' ./cmd/mcp-k6
@@ -56,6 +56,14 @@ index: ## Regenerate the documentation index database
 
 collect: ## Collect TypeScript type definitions into dist/
 	@go run ./cmd/prepare --collect-only
+
+sections: ## Regenerate sections index only (fast)
+	@go run -tags '$(GO_TAGS)' ./cmd/prepare --sections-only
+
+ensure-embed: ## Ensure placeholder embed assets exist before prepare
+	@mkdir -p dist/markdown dist
+	@[ -f dist/sections.json ] || printf '%s\n' '{"versions":[],"latest":"","sections":{}}' > dist/sections.json
+	@[ -f dist/markdown/placeholder.md ] || printf '%s\n' 'placeholder' > dist/markdown/placeholder.md
 
 help: ## List available targets
 	@echo "Available targets:"

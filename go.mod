@@ -7,6 +7,7 @@ require (
 	github.com/mattn/go-sqlite3 v1.14.33
 	github.com/stretchr/testify v1.10.0
 	github.com/yuin/goldmark v1.4.13
+	gopkg.in/yaml.v3 v3.0.1
 )
 
 require (
@@ -17,5 +18,4 @@ require (
 	github.com/rogpeppe/go-internal v1.14.1 // indirect
 	github.com/spf13/cast v1.7.1 // indirect
 	github.com/yosida95/uritemplate/v3 v3.0.2 // indirect
-	gopkg.in/yaml.v3 v3.0.1 // indirect
 )

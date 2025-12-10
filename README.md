@@ -342,6 +342,24 @@ FTS5 tips:
 
 Returns an array of results with `title`, `content`, `path`.
 
+### list_sections
+
+Browse the embedded documentation hierarchy without overwhelming model context. The tool now returns a depth-limited tree (default depth 1) plus metadata about how many children each section contains so you can progressively expand only the branches you need.
+
+Parameters:
+- `version` (string, optional): Specific docs version (`v1.4.x`, `all` for list).
+- `category` (string, optional): Filter to a top-level docs category.
+- `search` (string, optional): Keyword search. When set, the response remains the flat list used previously.
+- `search_max_results` (number, optional, default 20, max 100): Maximum number of sections returned when using `search`, keeping responses compact.
+- `depth` (number, optional, default 1, max 5): How many levels of children to include in the tree. Depth counts from the root you request.
+- `root_slug` (string, optional): List the immediate children under this slug (e.g., `using-k6`), just like `ls` inside a folder. Combine with `depth` to include deeper descendants.
+
+Response highlights:
+- `tree`: Depth-limited nodes with inline `children`, `child_count`, and `has_more` so you know when to fetch another layer.
+- `sections`: Convenience array of the sections at the current tree root (still useful for quick slug lookup or backwards compatibility). When searching, `count` reports returned items while `total`/`has_more` reveal truncated results.
+- `mode`: `"tree"` for hierarchical browsing or `"search"` when keyword filtering bypasses the tree.
+- `depth`/`root_slug`: Echo the arguments used so agents can decide whether to dive deeper.
+
 ## Available Resources
 
 ### Script Generation Template
