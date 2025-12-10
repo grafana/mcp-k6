@@ -104,6 +104,7 @@ func run(ctx context.Context, logger *slog.Logger, stderr io.Writer) int {
 	tools.RegisterRunTool(s)
 	tools.RegisterSearchTerraformTool(s)
 	tools.RegisterListSectionsTool(s, finder)
+	tools.RegisterGetDocumentationTool(s, finder)
 
 	// Register resources
 	resources.RegisterBestPracticesResource(s)
