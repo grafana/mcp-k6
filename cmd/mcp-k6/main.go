@@ -100,7 +100,7 @@ func run(ctx context.Context, logger *slog.Logger, stderr io.Writer) int {
 	// Register tools
 	tools.RegisterInfoTool(s)
 	tools.RegisterValidateTool(s)
-	tools.RegisterSearchDocumentationTool(s, db)
+	// tools.RegisterSearchDocumentationTool(s, db)
 	tools.RegisterRunTool(s)
 	tools.RegisterSearchTerraformTool(s)
 	tools.RegisterListSectionsTool(s, finder)
