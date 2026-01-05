@@ -3,6 +3,7 @@ package tools
 import (
 	"context"
 	"encoding/json"
+	"fmt"
 	"log/slog"
 	"os/exec"
 	"strings"
@@ -44,35 +45,24 @@ func searchTerraform(ctx context.Context, request mcp.CallToolRequest) (*mcp.Cal
 	logger := logging.LoggerFromContext(ctx)
 	logger.DebugContext(ctx, "Starting Terraform search")
 
+	// Check if terraform is available
+	terraformPath, err := exec.LookPath("terraform")
+	if err != nil {
+		logger.WarnContext(ctx, "Terraform executable not found", slog.String("error", err.Error()))
+		return mcp.NewToolResultError(
+			"Terraform is not installed or not available in PATH. " +
+				"Please install Terraform: https://developer.hashicorp.com/terraform/install",
+		), nil
+	}
+	logger.DebugContext(ctx, "Found terraform executable", slog.String("path", terraformPath))
+
 	root := request.GetString("root", ".")
 	term := strings.ToLower(request.GetString("term", "k6"))
+	logger.DebugContext(ctx, "Search parameters", slog.String("root", root), slog.String("term", term))
 
-	logger.DebugContext(ctx, "Search parameters",
-		slog.String("root", root),
-		slog.String("term", term))
-
-	// Run terraform providers schema -json
-	cmd := exec.CommandContext(ctx, "terraform", "providers", "schema", "-json")
-	cmd.Dir = root
-
-	output, err := cmd.Output()
+	schema, err := runTerraformSchema(ctx, logger, terraformPath, root)
 	if err != nil {
-		logger.ErrorContext(ctx, "Failed to run terraform command",
-			slog.String("error", err.Error()))
-		return mcp.NewToolResultError("Failed to run 'terraform providers schema -json': " + err.Error()), nil
-	}
-
-	// Parse the JSON output
-	var schema struct {
-		ProviderSchemas map[string]struct {
-			ResourceSchemas map[string]json.RawMessage `json:"resource_schemas"`
-		} `json:"provider_schemas"`
-	}
-
-	if err := json.Unmarshal(output, &schema); err != nil {
-		logger.ErrorContext(ctx, "Failed to parse terraform schema",
-			slog.String("error", err.Error()))
-		return mcp.NewToolResultError("Failed to parse terraform schema: " + err.Error()), nil
+		return mcp.NewToolResultError(err.Error()), nil
 	}
 
 	// Check if Grafana provider exists
@@ -101,10 +91,39 @@ func searchTerraform(ctx context.Context, request mcp.CallToolRequest) (*mcp.Cal
 
 	resultJSON, err := json.MarshalIndent(filtered, "", "  ")
 	if err != nil {
-		logger.ErrorContext(ctx, "Failed to marshal results",
-			slog.String("error", err.Error()))
+		logger.ErrorContext(ctx, "Failed to marshal results", slog.String("error", err.Error()))
 		return mcp.NewToolResultError("Failed to marshal results: " + err.Error()), nil
 	}
 
 	return mcp.NewToolResultText(string(resultJSON)), nil
+}
+
+type tfSchema struct {
+	ProviderSchemas map[string]struct {
+		ResourceSchemas map[string]json.RawMessage `json:"resource_schemas"`
+	} `json:"provider_schemas"`
+}
+
+func runTerraformSchema(ctx context.Context, logger *slog.Logger, tfPath, root string) (*tfSchema, error) {
+	cmd := exec.CommandContext(ctx, tfPath, "providers", "schema", "-json")
+	cmd.Dir = root
+
+	output, err := cmd.CombinedOutput()
+	if err != nil {
+		outputStr := strings.TrimSpace(string(output))
+		logger.ErrorContext(ctx, "Failed to run terraform command",
+			slog.String("error", err.Error()), slog.String("output", outputStr))
+		if outputStr != "" {
+			return nil, fmt.Errorf("failed to run 'terraform providers schema -json': %s", outputStr)
+		}
+		return nil, fmt.Errorf("failed to run 'terraform providers schema -json': %w", err)
+	}
+
+	var schema tfSchema
+	if err := json.Unmarshal(output, &schema); err != nil {
+		logger.ErrorContext(ctx, "Failed to parse terraform schema", slog.String("error", err.Error()))
+		return nil, fmt.Errorf("failed to parse terraform schema: %w", err)
+	}
+
+	return &schema, nil
 }
