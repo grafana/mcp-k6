@@ -57,9 +57,6 @@ index: ## Regenerate the documentation index database
 collect: ## Collect TypeScript type definitions into dist/
 	@go run ./cmd/prepare --collect-only
 
-terraform: ## Collect Grafana Terraform provider resource definitions (for k6 Cloud) into dist/
-	@go run ./cmd/prepare --terraform-only
-
 help: ## List available targets
 	@echo "Available targets:"
 	@awk -F '##' '/^[a-zA-Z0-9_.-]+:.*##/ { \
