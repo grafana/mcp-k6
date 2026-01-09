@@ -14,7 +14,6 @@ An **experimental** MCP (Model Context Protocol) server for k6, written in Go. I
 ### Resources
 - **Best Practices Resources**: Comprehensive k6 scripting guidelines and patterns to help you write effective, idiomatic, and correct tests.
 - **Type Definitions**: Up‑to‑date k6 TypeScript type definitions to improve accuracy and editor tooling.
-- **Terraform**: Information on how to use the [Grafana Terraform provider](https://registry.terraform.io/providers/grafana/grafana/latest) to manage k6 Cloud resources.
 
 ### Prompts
 - **Script Generation** with `generate_script`: Generate production‑ready k6 test scripts from plain‑English requirements. It automatically follows modern testing practices by leveraging embedded best practices, documentation, and type definitions.
@@ -355,12 +354,6 @@ AI-powered k6 script generation with structured workflow:
 - File system integration
 
 **Resource URI:** `prompts://k6/generate_script`
-
-### Terraform Resources & Data Sources
-
-Information on how to set up k6 Cloud resources using Grafana's Terraform provider.
-
-**Resource URI:** `prompts://k6/terraform`
 
 ## Development
 

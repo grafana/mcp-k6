@@ -28,9 +28,10 @@ import (
 // and resources that will be made available. However, it should be kept as brief as possible, as
 // to not waste conversation tokens.
 const instructions = `
-Use the provided tools for running or validating k6 scripts, or for searching through the k6 OSS docs.
-Use the provided resources for understanding the k6 script authoring best practices, for consulting
-type definitions, or for writing Terraform configuration for Grafana k6 Cloud.
+Use the provided tools for running or validating k6 scripts, for searching through the k6 OSS docs, or
+for searching for k6 Cloud-related Terraform resources in the Grafana Terraform provider.
+Use the provided resources for understanding the k6 script authoring best practices and for consulting
+type definitions.
 List the resources at least once before trying to access one of them.
 Use the provided prompts as a good starting point for authoring complex k6 scripts.
 `
@@ -81,10 +82,10 @@ func run(ctx context.Context, logger *slog.Logger, stderr io.Writer) int {
 	tools.RegisterValidateTool(s)
 	tools.RegisterSearchDocumentationTool(s, db)
 	tools.RegisterRunTool(s)
+	tools.RegisterSearchTerraformTool(s)
 
 	// Register resources
 	resources.RegisterBestPracticesResource(s)
-	resources.RegisterTerraformResource(s)
 	resources.RegisterTypeDefinitionsResources(s)
 
 	// Register prompts

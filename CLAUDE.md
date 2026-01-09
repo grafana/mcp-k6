@@ -10,7 +10,7 @@ An experimental MCP (Model Context Protocol) server for k6, written in Go. Provi
 
 ### Core Components
 - **cmd/mcp-k6/main.go**: MCP server entry point that registers tools, resources, and prompts via stdio transport
-- **cmd/prepare/main.go**: Build-time tool that generates embedded assets (SQLite FTS5 docs index, TypeScript types, Terraform docs)
+- **cmd/prepare/main.go**: Build-time tool that generates embedded assets (SQLite FTS5 docs index, TypeScript types)
 - **tools/**: MCP tool implementations (validate, run, search, info) with direct registration pattern
 - **prompts/**: MCP prompt implementations (script generation)
 - **internal/search/**: Full-text search using SQLite FTS5 with embedded documentation index
@@ -48,7 +48,7 @@ make install
 # Install without regenerating assets
 make install-only
 
-# Prepare embedded assets (docs index + TypeScript types + Terraform)
+# Prepare embedded assets (docs index + TypeScript types)
 make prepare
 
 # Regenerate only the documentation index
@@ -56,9 +56,6 @@ make index
 
 # Collect only TypeScript type definitions
 make collect
-
-# Collect only Terraform documentation
-make terraform
 
 # Run tests
 make test
@@ -197,7 +194,7 @@ func myHandler(ctx context.Context, request mcp.CallToolRequest) (*mcp.CallToolR
 
 The server provides:
 - **Tools**: 4 tools (validate_script, run_script, search_documentation, info)
-- **Resources**: Best practices guide + TypeScript type definitions + Terraform documentation
+- **Resources**: Best practices guide + TypeScript type definitions
 - **Prompts**: Script generation prompt (generate_script)
 - **Transport**: Stdio-based MCP communication
 - **Logging**: Context-based logger injection with panic recovery for all tools
@@ -258,12 +255,6 @@ The server uses **embedded SQLite FTS5** (full-text search) for documentation qu
 - Source: k6 TypeScript `.d.ts` files
 - Output: `dist/` directory (embedded via `internal/dist.go`)
 - Exposed as MCP resources with `types://k6/` URI scheme
-
-### Terraform Documentation
-- Collected by: `make terraform` or `make prepare`
-- Source: Grafana Terraform provider documentation
-- Output: `dist/resources/TERRAFORM.md`
-- Exposed as MCP resource at `docs://k6/terraform`
 
 ## Prerequisites
 

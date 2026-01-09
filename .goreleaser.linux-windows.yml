@@ -6,7 +6,7 @@ dist: release
 # Hooks to run before the build
 before:
   hooks:
-    # Generate embedded assets (SQLite FTS5 index, TypeScript types, Terraform docs)
+    # Generate embedded assets (SQLite FTS5 index, TypeScript types)
     - make prepare
 
 # Build configuration
