@@ -4,9 +4,7 @@ go 1.24.9
 
 require (
 	github.com/mark3labs/mcp-go v0.32.0
-	github.com/mattn/go-sqlite3 v1.14.33
 	github.com/stretchr/testify v1.10.0
-	github.com/yuin/goldmark v1.4.13
 	gopkg.in/yaml.v3 v3.0.1
 )
 

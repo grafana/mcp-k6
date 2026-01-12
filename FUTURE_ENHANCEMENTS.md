@@ -67,21 +67,6 @@ This document tracks potential enhancements to the `list_sections` and `get_docu
 - Helps users discover relevant content
 - Reduces need for multiple searches
 
-## Full-Text Search on Section Metadata
-
-**Goal:** Enable hybrid search combining FTS5 content search with metadata filtering.
-
-**Implementation:**
-1. Create separate FTS5 table for section metadata
-2. Index: title, description, keywords (if available)
-3. Add `search_sections` tool that searches metadata only
-4. Combine with existing `search_documentation` for comprehensive results
-
-**Benefits:**
-- Fast metadata-only searches
-- Better ranking for title matches
-- Enables faceted search (by category + keywords)
-
 ## Caching
 
 **Goal:** Improve performance for frequently accessed sections.

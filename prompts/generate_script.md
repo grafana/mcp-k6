@@ -19,14 +19,11 @@ Follow these steps in order to ensure high-quality output:
 - Treat the type definitions as the source of truth when examples conflict; avoid deprecated or experimental APIs unless explicitly requested.
 
 ### Step 1: Research & Discovery
-- Use the "k6/search_k6_documentation" tool as the primary source for k6 APIs and features for this request (prefer it over general web search).
-- Issue focused queries with exact module/API names and tasks (e.g., "k6/http batch", "scenarios constant-arrival-rate", "thresholds abortOnFail").
-- Optimize queries for SQLite FTS5: space-separated terms are ANDed by default; use quotes for exact phrases; operators AND/OR/NEAR and parentheses are supported; prefix wildcards are allowed (e.g., http*).
-- Prefer 2–5 high-signal terms (module, API, action). Example queries: "k6/http batch", "thresholds OR checks http_req_duration", "scenarios NEAR/5 constant-arrival-rate".
-- If results are noisy, add exact module/API names; if sparse, relax phrases, remove operators, or split into multiple simpler queries.
+- Use the "list_sections" tool to locate relevant documentation areas, then "get_documentation" for specific sections.
+- Prefer narrow targets with clear slugs (e.g., `javascript-api/k6-http`, `using-k6/scenarios`, `using-k6/thresholds`).
+- If the tree is large, drill down with `root_slug` before fetching content.
 - Capture short citations (doc title and path) for relevant results and include them in the Research Summary.
 - Mirror idiomatic syntax from the docs, but rely on the types for exact shapes (e.g., `Options['thresholds']`, `import http from 'k6/http'`).
-- If a query yields few results, split it into smaller concepts and run multiple queries in parallel.
 
 ### Step 2: Best Practices Review
 - Access the "docs://k6/best_practices" resource to review current guidelines
@@ -54,7 +51,7 @@ CRITICAL: You must save the generated script to the k6/scripts folder:
 - Include the full file path in your response so the user knows where to find it
 
 ### Step 6: Quality Validation
-- Use the "k6/validate_k6_script" tool to check script syntax and basic functionality
+- Use the "validate_script" tool to check script syntax and basic functionality
 - Verify the script addresses all requirements from the user's request
 - Ensure adherence to the best practices you reviewed
 
@@ -67,7 +64,7 @@ Before presenting the script, confirm:
 - The script file has been saved to k6/scripts/
 
 ### Step 8: Execution Offer
-If validation succeeds, offer to run the script using the "k6/run_k6_script" tool with:
+If validation succeeds, offer to run the script using the "run_script" tool with:
 - Suggested test parameters based on the script's purpose
 - Explanation of what the test will validate
 - Expected outcomes and metrics to monitor

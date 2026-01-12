@@ -23,7 +23,7 @@ var ListSectionsTool = mcp.NewTool(
 			"Use this to understand documentation organization and discover related topics. "+
 			"Navigate progressively: start at root, then use root_slug to expand branches. "+
 			"Returns compact metadata (no content) to minimize context usage. "+
-			"For searching sections by title/description, use find_sections instead.",
+			"Use get_documentation to retrieve the full content for a specific section.",
 	),
 	mcp.WithString(
 		"version",

@@ -41,12 +41,117 @@ func ParseFrontmatter(path string) (*Frontmatter, error) {
 		return nil, fmt.Errorf("failed to scan frontmatter: %w", err)
 	}
 
+	rawFrontmatter := strings.Join(yamlLines, "\n")
+
 	var fm Frontmatter
-	if err := yaml.Unmarshal([]byte(strings.Join(yamlLines, "\n")), &fm); err != nil {
+	if err := yaml.Unmarshal([]byte(rawFrontmatter), &fm); err == nil {
+		return &fm, nil
+	} else if !strings.Contains(err.Error(), "mapping key") {
+		return nil, fmt.Errorf("failed to parse frontmatter YAML: %w", err)
+	}
+
+	sanitized := dedupeFrontmatter(rawFrontmatter)
+	if sanitized == rawFrontmatter {
+		return nil, fmt.Errorf("failed to parse frontmatter YAML: %w", err)
+	}
+
+	if err := yaml.Unmarshal([]byte(sanitized), &fm); err != nil {
 		return nil, fmt.Errorf("failed to parse frontmatter YAML: %w", err)
 	}
 
 	return &fm, nil
+}
+
+func dedupeFrontmatter(raw string) string {
+	lines := strings.Split(raw, "\n")
+	if len(lines) == 0 {
+		return raw
+	}
+
+	type keyLine struct {
+		key   string
+		index int
+	}
+
+	var keyLines []keyLine
+	for i, line := range lines {
+		if key, ok := topLevelKey(line); ok {
+			keyLines = append(keyLines, keyLine{key: key, index: i})
+		}
+	}
+
+	if len(keyLines) == 0 {
+		return raw
+	}
+
+	type block struct {
+		key   string
+		start int
+		end   int
+	}
+
+	blocks := make([]block, 0, len(keyLines)+1)
+	if keyLines[0].index > 0 {
+		blocks = append(blocks, block{
+			key:   "",
+			start: 0,
+			end:   keyLines[0].index - 1,
+		})
+	}
+
+	for i, entry := range keyLines {
+		start := entry.index
+		end := len(lines) - 1
+		if i+1 < len(keyLines) {
+			end = keyLines[i+1].index - 1
+		}
+		blocks = append(blocks, block{
+			key:   entry.key,
+			start: start,
+			end:   end,
+		})
+	}
+
+	lastBlock := make(map[string]int, len(blocks))
+	for i, block := range blocks {
+		if block.key == "" {
+			continue
+		}
+		lastBlock[block.key] = i
+	}
+
+	var output []string
+	for i, block := range blocks {
+		if block.key != "" && lastBlock[block.key] != i {
+			continue
+		}
+		output = append(output, lines[block.start:block.end+1]...)
+	}
+
+	return strings.Join(output, "\n")
+}
+
+func topLevelKey(line string) (string, bool) {
+	if line == "" {
+		return "", false
+	}
+	if strings.HasPrefix(line, " ") || strings.HasPrefix(line, "\t") {
+		return "", false
+	}
+	trimmed := strings.TrimSpace(line)
+	if trimmed == "" || strings.HasPrefix(trimmed, "#") || strings.HasPrefix(trimmed, "-") {
+		return "", false
+	}
+
+	parts := strings.SplitN(trimmed, ":", 2)
+	if len(parts) != 2 {
+		return "", false
+	}
+	key := strings.TrimSpace(parts[0])
+	if key == "" || strings.ContainsAny(key, " \t") {
+		return "", false
+	}
+	return key, true
 }
 
 // ExtractSection creates a Section from a markdown file path.

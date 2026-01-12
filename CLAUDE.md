@@ -4,16 +4,16 @@ This file provides guidance to Claude Code (claude.ai/code) when working with co
 
 ## Project Overview
 
-An experimental MCP (Model Context Protocol) server for k6, written in Go. Provides k6 script validation, test execution, fast full-text documentation search (embedded SQLite FTS5), and guided script generation via MCP tools, resources, and prompts.
+An experimental MCP (Model Context Protocol) server for k6, written in Go. Provides k6 script validation, test execution, documentation browsing, and guided script generation via MCP tools, resources, and prompts.
 
 ## Architecture
 
 ### Core Components
 - **cmd/mcp-k6/main.go**: MCP server entry point that registers tools, resources, and prompts via stdio transport
-- **cmd/prepare/main.go**: Build-time tool that generates embedded assets (SQLite FTS5 docs index, TypeScript types)
-- **tools/**: MCP tool implementations (validate, run, search, info) with direct registration pattern
+- **cmd/prepare/main.go**: Build-time tool that generates embedded assets (sections index, markdown docs, TypeScript types)
+- **tools/**: MCP tool implementations (validate, run, list_sections, get_documentation, info) with direct registration pattern
 - **prompts/**: MCP prompt implementations (script generation)
-- **internal/search/**: Full-text search using SQLite FTS5 with embedded documentation index
+- **internal/sections/**: Documentation indexing and lookup for list_sections/get_documentation
 - **internal/security/**: Input validation, output sanitization, and environment security checks
 - **internal/k6env/**: k6 executable detection and version management
 - **internal/logging/**: Structured logging (slog) with context-based logger injection
@@ -21,22 +21,20 @@ An experimental MCP (Model Context Protocol) server for k6, written in Go. Provi
 
 ### Key Dependencies
 - `github.com/mark3labs/mcp-go` v0.32.0 - Core MCP library for server implementation
-- SQLite with FTS5 extension - Embedded full-text search (requires `fts5` and `sqlite_fts5` build tags)
 - k6 binary must be available in PATH for script execution
 
 ### Build System
 - **Make-based**: All build commands use Makefile targets that handle asset preparation
-- **Embedded assets**: Documentation index (`dist/index.db`) and TypeScript types embedded at build time using `go:embed`
-- **Build tags required**: Always use `-tags 'fts5 sqlite_fts5'` for proper SQLite FTS5 support
+- **Embedded assets**: Documentation sections (`dist/sections.json`), markdown docs (`dist/markdown`), and TypeScript types embedded at build time using `go:embed`
 
 ## Common Commands
 
 ### Make Commands (Primary)
 ```bash
-# Run the MCP server (generates index if missing)
+# Run the MCP server (generates docs assets if missing)
 make run
 
-# Build the binary (generates index if missing)
+# Build the binary (generates docs assets if missing)
 make build
 
 # Build without regenerating assets (faster for development)
@@ -48,14 +46,14 @@ make install
 # Install without regenerating assets
 make install-only
 
-# Prepare embedded assets (docs index + TypeScript types)
+# Prepare embedded assets (docs + TypeScript types)
 make prepare
 
-# Regenerate only the documentation index
-make index
+# Prepare documentation assets only
+make docs
 
 # Collect only TypeScript type definitions
-make collect
+make types
 
 # Run tests
 make test
@@ -77,20 +75,20 @@ make help
 If you need to run commands directly:
 
 ```bash
-# Generate the SQLite FTS5 docs index (REQUIRED before build/run)
-go run -tags 'fts5 sqlite_fts5' ./cmd/prepare --index-only
+# Prepare documentation assets
+go run ./cmd/prepare --docs-only
 
 # Run the MCP server
-go run -tags 'fts5 sqlite_fts5' ./cmd/mcp-k6
+go run ./cmd/mcp-k6
 
 # Build binary
-go build -tags 'fts5 sqlite_fts5' -o mcp-k6 ./cmd/mcp-k6
+go build -o mcp-k6 ./cmd/mcp-k6
 
 # Run tests
-go test -tags 'fts5 sqlite_fts5' ./...
+go test ./...
 
 # Run a single test
-go test -tags 'fts5 sqlite_fts5' -run TestName ./path/to/package
+go test -run TestName ./path/to/package
 
 # Install dependencies
 go mod tidy
@@ -112,11 +110,6 @@ golangci-lint run --fix
 Always run `golangci-lint run` before committing changes.
 
 ## Development Guidelines
-
-### Build Tags
-- **CRITICAL**: Always use `-tags 'fts5 sqlite_fts5'` when building, running, or testing
-- Without these tags, the SQLite FTS5 full-text search will not work
-- Makefile handles this automatically; only needed for manual Go commands
 
 ### Tool Implementation Pattern
 
@@ -193,7 +186,7 @@ func myHandler(ctx context.Context, request mcp.CallToolRequest) (*mcp.CallToolR
 ## MCP Server Capabilities
 
 The server provides:
-- **Tools**: 4 tools (validate_script, run_script, search_documentation, info)
+- **Tools**: validate_script, run_script, list_sections, get_documentation, search_terraform, info
 - **Resources**: Best practices guide + TypeScript type definitions
 - **Prompts**: Script generation prompt (generate_script)
 - **Transport**: Stdio-based MCP communication
@@ -215,43 +208,45 @@ Executes k6 tests with configurable VUs/duration/iterations. Returns execution r
 **Limits**: Max 50 VUs, max 5m duration
 **Timeout**: Default execution timeout
 
-### search_documentation
-Full-text search over embedded k6 docs using SQLite FTS5. Supports FTS5 query syntax (AND, OR, NEAR, phrases, prefix matching).
+### list_sections
+Lists documentation sections as a depth-limited tree for progressive browsing.
 
-**Implementation**: `tools/search.go`
-**Backend**: Embedded SQLite database with FTS5 virtual table
-**Index generation**: `cmd/prepare/main.go` and `internal/search/index.go`
+**Implementation**: `tools/list_sections.go`
+
+### get_documentation
+Returns full markdown content for a specific documentation section.
+
+**Implementation**: `tools/get_documentation.go`
 
 ### info
 Returns k6 environment information (version, path, login status).
 
 **Implementation**: `tools/info.go`
 
-## Documentation Search Architecture
+## Documentation Browsing Architecture
 
-The server uses **embedded SQLite FTS5** (full-text search) for documentation queries:
+The server embeds structured documentation assets for section browsing and retrieval:
 
-1. **Build-time indexing**: `cmd/prepare/main.go` scans k6 docs and creates `dist/index.db`
-2. **Embedded database**: `dist/index.db` is embedded in the binary via `go:embed`
-3. **Runtime extraction**: On startup, the embedded DB is written to a temporary file
-4. **FTS5 queries**: `search_documentation` tool queries the FTS5 virtual table
+1. **Build-time indexing**: `cmd/prepare/main.go` scans k6 docs and creates `dist/sections.json`
+2. **Embedded content**: `dist/sections.json` and `dist/markdown/**` are embedded via `go:embed`
+3. **Runtime lookup**: `list_sections` and `get_documentation` read from the embedded assets
 
 **Key files**:
-- `internal/search/index.go`: Documentation indexing logic
-- `internal/search/sqlite.go`: SQLite FTS5 query implementation
-- `internal/search/full-text.go`: Full-text search interface
-- `cmd/mcp-k6/main.go`: Database extraction and temp file management (`openDB`, `closeDB`, `removeDBFile`)
+- `internal/sections/indexer.go`: Sections indexing logic
+- `internal/sections/parser.go`: Frontmatter parsing
+- `tools/list_sections.go`: Section tree browsing
+- `tools/get_documentation.go`: Markdown content retrieval
 
 ## Working with Embedded Assets
 
-### Documentation Index
-- Generated by: `make index` or `make prepare`
-- Source: k6 documentation markdown files in `k6-docs/` (Git submodule)
-- Output: `dist/index.db` (embedded via `embed.go`)
-- **Important**: Must regenerate after updating k6-docs submodule
+### Documentation Assets
+- Generated by: `make docs` or `make prepare`
+- Source: k6 documentation markdown files in `k6-docs` (cloned during preparation)
+- Output: `dist/sections.json` and `dist/markdown/**` (embedded via `embed.go`)
+- **Important**: Must regenerate after updating k6 docs sources
 
 ### TypeScript Definitions
-- Collected by: `make collect` or `make prepare`
+- Collected by: `make types` or `make prepare`
 - Source: k6 TypeScript `.d.ts` files
 - Output: `dist/` directory (embedded via `internal/dist.go`)
 - Exposed as MCP resources with `types://k6/` URI scheme
@@ -287,14 +282,11 @@ mcp-k6 --version
 ## Common Development Tasks
 
 ### Updating k6 Documentation
-When the k6-docs submodule is updated:
+When you need fresh docs content:
 
 ```bash
-# Update submodule to latest
-git submodule update --remote k6-docs
-
-# Regenerate the search index
-make index
+# Regenerate documentation assets
+make docs
 
 # Rebuild and reinstall
 make install
@@ -315,11 +307,11 @@ make run
 ```
 
 ### Adding New Documentation Sources
-If adding new markdown files to be indexed:
+If adding new markdown files to be embedded:
 
-1. Add files to `k6-docs/` submodule (or configure in `cmd/prepare/main.go`)
-2. Run `make index` to regenerate the SQLite database
-3. Verify with `make run` and test the search tool
+1. Update docs sources (or adjust `cmd/prepare/main.go`)
+2. Run `make docs` to regenerate docs assets
+3. Verify with `make run` and test list_sections/get_documentation
 
 ### Faster Development Iteration
 

@@ -5,11 +5,6 @@ import (
 	"embed"
 )
 
-// EmbeddedDB contains the SQLite database file for k6 documentation search.
-//
-//go:embed dist/index.db
-var EmbeddedDB []byte
-
 // TypeDefinitions contains embedded TypeScript type definitions for k6.
 //
 //go:embed dist/definitions/types/k6/**

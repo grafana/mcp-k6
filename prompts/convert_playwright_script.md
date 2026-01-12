@@ -21,7 +21,7 @@ Follow these steps to ensure high-quality, accurate, and maintainable output:
 - Treat the type definitions as the source of truth when examples conflict; avoid deprecated or experimental APIs unless explicitly requested.
 
 ### Step 0: Tooling and Sources (quick reference)
-- Tools: "info" (k6 version), "search_documentation" (k6 docs FTS), "validate_script", "run_script"
+- Tools: "info" (k6 version), "list_sections", "get_documentation", "validate_script", "run_script"
 - Embedded resources: "types://k6/**", "docs://k6/best_practices"
 - Primary docs to cite:
   - Migrate from Playwright to k6: https://grafana.com/docs/k6/latest/using-k6-browser/migrate-from-playwright-to-k6/
@@ -30,9 +30,9 @@ Follow these steps to ensure high-quality, accurate, and maintainable output:
 
 ### Step 1: Research & Discovery
 - Call "info" to detect the installed k6 version to reason about feature availability.
-- Use "search_documentation" as the primary source for APIs and features. Run focused FTS5 queries:
-  - Prefer 2–5 high-signal terms (module, API, action), e.g., "k6/browser locator click", "scenarios shared-iterations", "thresholds abortOnFail".
-  - If noisy, add exact module/API names; if sparse, simplify or split into multiple queries.
+- Use "list_sections" to locate relevant documentation areas, then "get_documentation" for specific sections.
+  - Prefer narrow targets like `using-k6-browser` and `javascript-api/k6-browser`.
+  - If the doc tree is large, drill down with `root_slug` before fetching content.
 - Consult "Playwright APIs in k6" to map Playwright methods to `k6/browser` and identify unsupported areas or differences.
 - Consult "Migrate from Playwright to k6" for conversion guidance and pitfalls (notably single browser context restriction).
 - Capture short citations (doc title + path) and include them in the Research Summary. Mirror idiomatic doc syntax but rely on types for exact shapes (for example, `import { browser } from 'k6/browser'` and `Options['browser']`).
@@ -113,7 +113,7 @@ If validation succeeds, offer to run the script using the "run_script" tool with
 
 ## CONSTRAINTS & SAFETY
 - Context window discipline: keep research summary to essentials; don't paste large docs; include only the final script plus concise comments.
-- Use only APIs present in "types://k6/**" and documented via "search_documentation". Do not invent missing APIs.
+- Use only APIs present in "types://k6/**" and documented via list_sections/get_documentation. Do not invent missing APIs.
 - If a Playwright API is unsupported, implement the closest supported pattern or clearly note an equivalent fallback, with a brief rationale. If there isn't one already, consider suggesting to the user opening a github issue on the grafana/k6 repository asking for support for that specific feature.
 - Respect k6 browser constraints: only one browser context at a time; close existing contexts before opening new ones.
 - Follow repository naming/formatting conventions. Keep scripts readable and maintainable.

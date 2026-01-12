@@ -1,12 +1,8 @@
-//go:build fts5
-
 // Package main provides the k6 MCP server.
 package main
 
 import (
 	"context"
-	"database/sql"
-	_ "embed"
 	"errors"
 	"fmt"
 	"io"
@@ -29,7 +25,7 @@ import (
 // and resources that will be made available. However, it should be kept as brief as possible, as
 // to not waste conversation tokens.
 const instructions = `
-Use the provided tools for running or validating k6 scripts, for searching through the k6 OSS docs, or
+Use the provided tools for running or validating k6 scripts, for browsing the k6 OSS docs, or
 for searching for k6 Cloud-related Terraform resources in the Grafana Terraform provider.
 Use the provided resources for understanding the k6 script authoring best practices and for consulting
 type definitions.
@@ -58,16 +54,6 @@ func run(ctx context.Context, logger *slog.Logger, stderr io.Writer) int {
 	}
 
 	logger.Info("Detected k6 executable", slog.String("path", k6Info.Path))
-
-	// Open the embedded database SQLite file
-	db, dbFile, err := openDB(k6mcp.EmbeddedDB)
-	if err != nil {
-		logger.Error("Error opening database", "error", err)
-		fmt.Fprintf(stderr, "Failed to open embedded database: %v\n", err)
-		return 1
-	}
-	defer closeDB(logger, db)
-	defer removeDBFile(logger, dbFile)
 
 	// Load sections index
 	logger.Info("Loading sections index")
@@ -100,7 +86,6 @@ func run(ctx context.Context, logger *slog.Logger, stderr io.Writer) int {
 	// Register tools
 	tools.RegisterInfoTool(s)
 	tools.RegisterValidateTool(s)
-	// tools.RegisterSearchDocumentationTool(s, db)
 	tools.RegisterRunTool(s)
 	tools.RegisterSearchTerraformTool(s)
 	tools.RegisterListSectionsTool(s, finder)
@@ -135,47 +120,4 @@ func handleK6LookupError(logger *slog.Logger, stderr io.Writer, err error) int {
 	}
 
 	return 1
-}
-
-// openDB loads the database file from the embedded data, writes it to a temporary file,
-// and returns the file handle and a database connection.
-//
-// The caller is responsible for closing the database connection and removing the temporary file.
-func openDB(dbData []byte) (db *sql.DB, dbFile *os.File, err error) {
-	// Load the search index database file from the embedded data
-	dbFile, err = os.CreateTemp("", "mcp-k6-index-*.db")
-	if err != nil {
-		return nil, nil, fmt.Errorf("error creating temporary database file: %w", err)
-	}
-
-	_, err = dbFile.Write(dbData)
-	if err != nil {
-		return nil, nil, fmt.Errorf("error writing index database to temporary file: %w", err)
-	}
-	err = dbFile.Close()
-	if err != nil {
-		return nil, nil, fmt.Errorf("error closing temporary database file: %w", err)
-	}
-
-	// Open SQLite connection
-	db, err = sql.Open("sqlite3", dbFile.Name()+"?mode=ro")
-	if err != nil {
-		return nil, nil, fmt.Errorf("error opening temporary database file: %w", err)
-	}
-
-	return db, dbFile, nil
-}
-
-func closeDB(logger *slog.Logger, db *sql.DB) {
-	err := db.Close()
-	if err != nil {
-		logger.Error("Error closing database connection", "error", err)
-	}
-}
-
-func removeDBFile(logger *slog.Logger, dbFile *os.File) {
-	err := os.Remove(dbFile.Name())
-	if err != nil {
-		logger.Error("Error removing temporary database file", "error", err)
-	}
 }

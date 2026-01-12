@@ -1,5 +1,5 @@
 // Package main provides a unified command for preparing the mcp-k6 server
-// by performing documentation indexing and type definitions collection.
+// by performing documentation preparation and type definitions collection.
 //
 //nolint:forbidigo
 package main
@@ -9,6 +9,7 @@ import (
 	"context"
 	"flag"
 	"fmt"
+	"io"
 	"io/fs"
 	"log"
 	"os"
@@ -21,7 +22,7 @@ import (
 	"time"
 
 	"github.com/grafana/mcp-k6/internal"
-	"github.com/grafana/mcp-k6/internal/search"
+	"github.com/grafana/mcp-k6/internal/sections"
 )
 
 const (
@@ -32,15 +33,14 @@ const (
 
 func main() {
 	var (
-		indexOnly   = flag.Bool("index-only", false, "Only perform documentation indexing")
-		collectOnly = flag.Bool("collect-only", false, "Only collect type definitions")
-		recreateDB  = flag.Bool("recreate-db", true, "Drop and recreate the FTS5 table before indexing")
+		docsOnly  = flag.Bool("docs-only", false, "Only prepare documentation assets")
+		typesOnly = flag.Bool("types-only", false, "Only collect type definitions")
 	)
 	flag.Parse()
 
 	// Validate flags
-	if *indexOnly && *collectOnly {
-		log.Fatal("Cannot specify both --index-only and --collect-only flags")
+	if *docsOnly && *typesOnly {
+		log.Fatal("Cannot specify both --docs-only and --types-only flags")
 	}
 
 	workDir, err := os.Getwd()
@@ -49,23 +49,22 @@ func main() {
 	}
 
 	// Determine what operations to run
-	runIndex := *indexOnly
-	runCollect := *collectOnly
-	if !*indexOnly && !*collectOnly {
-		// Run all operations
-		runIndex = true
-		runCollect = true
+	runDocs := *docsOnly
+	runTypes := *typesOnly
+	if !*docsOnly && !*typesOnly {
+		runDocs = true
+		runTypes = true
 	}
 
-	if runIndex {
-		log.Println("Starting documentation indexing...")
-		if err := runIndexer(workDir, *recreateDB); err != nil {
-			log.Fatalf("Documentation indexing failed: %v", err)
+	if runDocs {
+		log.Println("Starting documentation preparation...")
+		if err := runDocsPreparation(workDir); err != nil {
+			log.Fatalf("Documentation preparation failed: %v", err)
 		}
-		log.Println("Documentation indexing completed successfully")
+		log.Println("Documentation preparation completed successfully")
 	}
 
-	if runCollect {
+	if runTypes {
 		log.Println("Starting type definitions collection...")
 		if err := runCollector(workDir); err != nil {
 			log.Fatalf("Type definitions collection failed: %v", err)
@@ -76,12 +75,14 @@ func main() {
 	log.Println("Preparation completed successfully")
 }
 
-// runIndexer performs the documentation indexing operation
-func runIndexer(workDir string, recreate bool) error {
+// runDocsPreparation downloads the k6 documentation, builds sections.json,
+// and copies markdown content into dist/markdown.
+func runDocsPreparation(workDir string) error {
 	const (
 		k6DocsRepo     = "https://github.com/grafana/k6-docs.git"
 		docsSourcePath = "docs/sources/k6"
-		databaseName   = "index.db"
+		sectionsName   = "sections.json"
+		markdownDir    = "markdown"
 	)
 
 	tempDir, err := os.MkdirTemp("", "k6-docs-*")
@@ -100,39 +101,39 @@ func runIndexer(workDir string, recreate bool) error {
 	}
 
 	docsDir := filepath.Join(tempDir, docsSourcePath)
-	latestVersion, err := findLatestVersion(docsDir)
+	versions, err := findAvailableVersions(docsDir)
 	if err != nil {
-		return fmt.Errorf("failed to find latest version: %w", err)
+		return fmt.Errorf("failed to find documentation versions: %w", err)
 	}
+	latestVersion := versions[0]
 
 	log.Printf("Using k6 documentation version: %s", latestVersion)
-	docsPath := filepath.Join(docsDir, latestVersion)
 
 	distPath := filepath.Join(workDir, distDir)
 	if err := os.MkdirAll(distPath, dirPermissions); err != nil {
 		return fmt.Errorf("failed to create dist directory: %w", err)
 	}
 
-	databasePath := filepath.Join(distPath, databaseName)
-	log.Printf("Generating SQLite database at: %s", databasePath)
-
-	db, err := search.InitSQLiteDB(databasePath, recreate)
+	sectionsIndexPath := filepath.Join(distPath, sectionsName)
+	log.Printf("Building sections index at: %s", sectionsIndexPath)
+	index, err := sections.BuildMultiVersionIndex(docsDir, versions)
 	if err != nil {
-		return fmt.Errorf("failed to initialize SQLite database: %w", err)
+		return fmt.Errorf("failed to build sections index: %w", err)
 	}
-	defer func() {
-		if closeErr := db.Close(); closeErr != nil {
-			log.Printf("Warning: Failed to close database: %v", closeErr)
-		}
-	}()
-
-	indexer := search.NewSQLiteIndexer(db)
-	count, err := indexer.IndexDirectory(docsPath)
-	if err != nil {
-		return fmt.Errorf("failed to index documents: %w", err)
+	if err := index.WriteJSON(sectionsIndexPath); err != nil {
+		return fmt.Errorf("failed to write sections index: %w", err)
 	}
 
-	log.Printf("Successfully generated database with %d documents at: %s", count, databasePath)
+	markdownPath := filepath.Join(distPath, markdownDir)
+	log.Printf("Copying markdown content to: %s", markdownPath)
+	if err := os.RemoveAll(markdownPath); err != nil {
+		return fmt.Errorf("failed to clean markdown directory: %w", err)
+	}
+	if err := copyMarkdownDocs(docsDir, markdownPath, versions); err != nil {
+		return fmt.Errorf("failed to copy markdown documentation: %w", err)
+	}
+
+	log.Printf("Successfully prepared documentation for %d versions", len(versions))
 	return nil
 }
 
@@ -180,8 +181,8 @@ func cloneRepository(repoURL, targetDir string) error {
 	return nil
 }
 
-// findLatestVersion finds the latest k6 version directory in the docs
-func findLatestVersion(docsDir string) (string, error) {
+// findAvailableVersions finds k6 version directories in the docs sorted latest-first.
+func findAvailableVersions(docsDir string) ([]string, error) {
 	type Version struct {
 		Original string
 		Major    int
@@ -190,7 +191,7 @@ func findLatestVersion(docsDir string) (string, error) {
 
 	entries, err := os.ReadDir(docsDir)
 	if err != nil {
-		return "", fmt.Errorf("failed to read docs directory: %w", err)
+		return nil, fmt.Errorf("failed to read docs directory: %w", err)
 	}
 
 	versions := make([]Version, 0, len(entries))
@@ -229,7 +230,7 @@ func findLatestVersion(docsDir string) (string, error) {
 	}
 
 	if len(versions) == 0 {
-		return "", fmt.Errorf("no valid version directories found")
+		return nil, fmt.Errorf("no valid version directories found")
 	}
 
 	sort.Slice(versions, func(i, j int) bool {
@@ -239,7 +240,12 @@ func findLatestVersion(docsDir string) (string, error) {
 		return versions[i].Minor > versions[j].Minor
 	})
 
-	return versions[0].Original, nil
+	results := make([]string, 0, len(versions))
+	for _, v := range versions {
+		results = append(results, v.Original)
+	}
+
+	return results, nil
 }
 
 // cloneTypesRepository clones the types repository and sets sparse checkout to k6 types
@@ -320,6 +326,73 @@ func cleanUpTypesRepository(repoDir string) error {
 	sort.Slice(directories, func(i, j int) bool { return len(directories[i]) > len(directories[j]) })
 	for _, dir := range directories {
 		_ = os.Remove(dir) // remove only if empty
+	}
+
+	return nil
+}
+
+func copyMarkdownDocs(docsRoot, destRoot string, versions []string) error {
+	for _, version := range versions {
+		sourceRoot := filepath.Join(docsRoot, version)
+		targetRoot := filepath.Join(destRoot, version)
+
+		err := filepath.WalkDir(sourceRoot, func(path string, d fs.DirEntry, walkErr error) error {
+			if walkErr != nil {
+				return walkErr
+			}
+			if d.IsDir() || !strings.HasSuffix(d.Name(), ".md") {
+				return nil
+			}
+
+			relPath, err := filepath.Rel(sourceRoot, path)
+			if err != nil {
+				return fmt.Errorf("failed to compute relative path: %w", err)
+			}
+
+			targetPath := filepath.Join(targetRoot, relPath)
+			if err := os.MkdirAll(filepath.Dir(targetPath), dirPermissions); err != nil {
+				return fmt.Errorf("failed to create directory for %s: %w", targetPath, err)
+			}
+
+			if err := copyFile(path, targetPath); err != nil {
+				return fmt.Errorf("failed to copy %s: %w", path, err)
+			}
+
+			return nil
+		})
+		if err != nil {
+			return fmt.Errorf("failed to copy markdown for version %s: %w", version, err)
+		}
+	}
+
+	return nil
+}
+
+func copyFile(source, dest string) (retErr error) {
+	// #nosec G304 -- source path is derived from a controlled docs tree walk.
+	srcFile, err := os.Open(source)
+	if err != nil {
+		return err
+	}
+	defer func() {
+		if closeErr := srcFile.Close(); closeErr != nil && retErr == nil {
+			retErr = closeErr
+		}
+	}()
+
+	// #nosec G304 -- destination path is derived from a controlled docs tree walk.
+	destFile, err := os.OpenFile(dest, os.O_CREATE|os.O_TRUNC|os.O_WRONLY, 0o600)
+	if err != nil {
+		return err
+	}
+	defer func() {
+		if closeErr := destFile.Close(); closeErr != nil && retErr == nil {
+			retErr = closeErr
+		}
+	}()
+
+	if _, err := io.Copy(destFile, srcFile); err != nil {
+		return err
 	}
 
 	return nil
