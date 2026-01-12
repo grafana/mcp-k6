@@ -33,10 +33,12 @@ List the resources at least once before trying to access one of them.
 Use the provided prompts as a good starting point for authoring complex k6 scripts.
 `
 
+//nolint:gochecknoglobals // Allows test override for stdio server.
 var serveStdio = server.ServeStdio
 
 func main() {
 	logger := logging.Default()
+	//nolint:forbidigo // main must exit with the server status code.
 	os.Exit(run(context.Background(), logger, os.Stderr))
 }
 
@@ -102,7 +104,7 @@ func run(ctx context.Context, logger *slog.Logger, stderr io.Writer) int {
 	logger.Info("Starting MCP server on stdio")
 	if err := serveStdio(s); err != nil {
 		logger.Error("Server error", slog.String("error", err.Error()))
-		fmt.Fprintf(stderr, "MCP server exited with error: %v\n", err)
+		_, _ = fmt.Fprintf(stderr, "MCP server exited with error: %v\n", err)
 		return 1
 	}
 
@@ -111,12 +113,14 @@ func run(ctx context.Context, logger *slog.Logger, stderr io.Writer) int {
 
 func handleK6LookupError(logger *slog.Logger, stderr io.Writer, err error) int {
 	if errors.Is(err, k6env.ErrNotFound) {
-		message := "mcp-k6 requires the `k6` executable on your PATH. Install k6 (https://grafana.com/docs/k6/latest/get-started/installation/) and ensure it is accessible before retrying."
+		message := "mcp-k6 requires the `k6` executable on your PATH. Install k6 " +
+			"(https://grafana.com/docs/k6/latest/get-started/installation/) " +
+			"and ensure it is accessible before retrying."
 		logger.Error("k6 executable not found on PATH", slog.String("hint", message))
-		fmt.Fprintln(stderr, message)
+		_, _ = fmt.Fprintln(stderr, message)
 	} else {
 		logger.Error("Failed to locate k6 executable", slog.String("error", err.Error()))
-		fmt.Fprintf(stderr, "Failed to locate k6 executable: %v\n", err)
+		_, _ = fmt.Fprintf(stderr, "Failed to locate k6 executable: %v\n", err)
 	}
 
 	return 1

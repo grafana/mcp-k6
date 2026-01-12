@@ -44,7 +44,7 @@ reviewable: prepare tests vet ## Run the reviewable command
 release:
 	@goreleaser build --snapshot --clean
 
-prepare: ## Prepare the mcp-k6 server for distribution
+prepare: ensure-embed ## Prepare the mcp-k6 server for distribution
 	@go run ./cmd/prepare
 
 clean: ## Clean generated artifacts
