@@ -1,5 +1,3 @@
-//go:build fts5
-
 package main
 
 import (
@@ -68,8 +66,8 @@ func createK6Stub(t *testing.T, dir string) {
 	}
 
 	path := filepath.Join(dir, filename)
+	//nolint:gosec,forbidigo // Test helper needs executable permissions for the stub.
 	if err := os.WriteFile(path, []byte(content), 0o700); err != nil {
 		t.Fatalf("failed to write k6 stub: %v", err)
 	}
-
 }

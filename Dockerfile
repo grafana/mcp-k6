@@ -1,8 +1,8 @@
 # Build stage
 FROM golang:1.25-alpine@sha256:d3f0cf7723f3429e3f9ed846243970b20a2de7bae6a5b66fc5914e228d831bbb AS builder
 
-# Install build dependencies for CGO and SQLite
-RUN apk add --no-cache gcc musl-dev make bash git
+# Install build dependencies
+RUN apk add --no-cache make bash git
 
 # Set the working directory
 WORKDIR /app
