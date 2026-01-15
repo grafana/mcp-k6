@@ -4,9 +4,11 @@ package main
 import (
 	"context"
 	"errors"
+	"flag"
 	"fmt"
 	"io"
 	"log/slog"
+	"net/http"
 	"os"
 
 	"github.com/mark3labs/mcp-go/server"
@@ -43,6 +45,14 @@ func main() {
 }
 
 func run(ctx context.Context, logger *slog.Logger, stderr io.Writer) int {
+	var (
+		transport    = flag.String("transport", "stdio", "Transport mode: stdio or http")
+		addr         = flag.String("addr", ":8080", "HTTP address to listen on")
+		ssePath      = flag.String("sse-path", "/sse", "Path for SSE endpoint")
+		messagesPath = flag.String("messages-path", "/messages", "Path for message posting")
+	)
+	flag.Parse()
+
 	logger.Info("Starting k6 MCP server",
 		slog.String("version", buildinfo.Version),
 		slog.String("commit", buildinfo.Commit),
@@ -100,6 +110,41 @@ func run(ctx context.Context, logger *slog.Logger, stderr io.Writer) int {
 	// Register prompts
 	prompts.RegisterGenerateScriptPrompt(s)
 	prompts.RegisterConvertPlaywrightScriptPrompt(s)
+
+	if *transport == "http" {
+		// Construct BaseURL from the address
+		baseURL := "http://localhost:8080" // Default fallback
+		if *addr != "" {
+			if (*addr)[0] == ':' {
+				baseURL = "http://localhost" + *addr
+			} else {
+				baseURL = "http://" + *addr
+			}
+		}
+
+		sseServer := server.NewSSEServer(s,
+			server.WithBaseURL(baseURL),
+			server.WithSSEEndpoint(*ssePath),
+			server.WithMessageEndpoint(*messagesPath),
+		)
+		mux := http.NewServeMux()
+		mux.Handle(*ssePath, sseServer)
+		mux.Handle(*messagesPath, sseServer)
+
+		logger.Info("Starting MCP server on HTTP",
+			slog.String("addr", *addr),
+			slog.String("sse_path", *ssePath),
+			slog.String("messages_path", *messagesPath),
+			slog.String("base_url", baseURL),
+		)
+
+		if err := http.ListenAndServe(*addr, mux); err != nil {
+			logger.Error("Server error", slog.String("error", err.Error()))
+			_, _ = fmt.Fprintf(stderr, "MCP server exited with error: %v\n", err)
+			return 1
+		}
+		return 0
+	}
 
 	logger.Info("Starting MCP server on stdio")
 	if err := serveStdio(s); err != nil {
