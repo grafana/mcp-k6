@@ -164,9 +164,63 @@ Whenever docs or resources change, rebuild embeds with:
 make prepare
 ```
 
+## HTTP/SSE Transport Mode
+
+mcp-k6 supports two transport modes:
+
+1.  **Stdio (Default):** Best for local, single-user setups where your editor or MCP client manages the server process directly.
+2.  **HTTP/SSE:** Ideal for remote deployments, shared team instances, or complex network setups where clients connect over the network.
+
+### Running in HTTP Mode
+
+To start the server in HTTP mode, use the `-transport=http` flag:
+
+**Native:**
+```bash
+mcp-k6 -transport=http -addr=:8080
+```
+
+**Docker:**
+```bash
+docker run -p 8080:8080 grafana/mcp-k6 -transport=http -addr=:8080
+```
+
+### Configuration Flags
+
+-   `-addr`: Listening address (default `:8080`). To listen on all interfaces, use `:8080` or `0.0.0.0:8080`.
+-   `-sse-path`: Path for the SSE endpoint (default `/sse`).
+-   `-messages-path`: Path for the messages endpoint (default `/messages`).
+
+## Remote Deployment (Team Usage)
+
+You can deploy mcp-k6 as a shared service for your team. This allows multiple users to connect their MCP clients (like Claude Desktop or Cursor) to a central instance, sharing the execution environment.
+
+**Example Deployment:**
+
+1.  Deploy the Docker container to your infrastructure (e.g., Kubernetes, EC2).
+2.  Expose port `8080`.
+3.  Configure the server to listen on all interfaces: `-addr=0.0.0.0:8080`.
+
+**Security Note:** The server has no built-in authentication. It should be deployed in a trusted network (VPN, private VPC) or behind a secure proxy that handles authentication.
+
 ### Editor Integrations
 
-`mcp-k6` speaks MCP over stdio. Choose the configuration that matches your installation method.
+`mcp-k6` speaks MCP over stdio by default, but can be configured for HTTP/SSE.
+
+#### Connect via HTTP/SSE
+
+If you are running the server in HTTP mode (locally or remotely), configure your editor to connect via SSE:
+
+```json
+{
+  "mcpServers": {
+    "remote-k6": {
+      "url": "http://your-server-ip:8080/sse",
+      "transport": "sse"
+    }
+  }
+}
+```
 
 #### Cursor IDE
 
