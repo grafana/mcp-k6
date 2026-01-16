@@ -34,4 +34,7 @@ COPY --from=builder --chown=12345:12345 /app/mcp-k6 /home/k6/
 USER k6
 
 # Run the mcp-k6 application instead of k6
-ENTRYPOINT ["/home/k6/mcp-k6"] 
+ENTRYPOINT ["/home/k6/mcp-k6"]
+
+# Expose port 8080 for HTTP/SSE transport
+EXPOSE 8080 
