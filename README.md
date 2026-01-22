@@ -212,7 +212,7 @@ Add the server to Claude Code:
 
 **Docker:**
 ```bash
-claude mcp add --scope=user --transport=stdio k6 docker run --rm -i mcp-k6
+claude mcp add --scope=user --transport=stdio k6 -- docker run --rm -i grafana/mcp-k6
 ```
 
 **Native:**
