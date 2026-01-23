@@ -300,7 +300,6 @@ func executeK6Validation(ctx context.Context, scriptPath string) (*ValidationRes
 	if errors.Is(err, context.DeadlineExceeded) {
 		logger.WarnContext(ctx, "k6 validation timed out",
 			slog.Duration("timeout", ValidationTimeout))
-		result.Error = fmt.Sprintf("k6 validation timed out after %v", DefaultTimeout)
 		result.Error = fmt.Sprintf("k6 validation timed out after %v", ValidationTimeout)
 		return result, &ValidationError{
 			Type:    "TIMEOUT",
