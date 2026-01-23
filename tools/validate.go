@@ -12,7 +12,6 @@ import (
 	"time"
 
 	"github.com/grafana/mcp-k6/internal/helpers"
-
 	"github.com/grafana/mcp-k6/internal/logging"
 	"github.com/mark3labs/mcp-go/mcp"
 	"github.com/mark3labs/mcp-go/server"
