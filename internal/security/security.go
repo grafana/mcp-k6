@@ -8,14 +8,11 @@ import (
 	"os"
 	"os/exec"
 	"strings"
-	"time"
 
 	"github.com/grafana/mcp-k6/internal/logging"
 )
 
 const (
-	// MaxExecutionTime is the maximum allowed execution time for any operation.
-	MaxExecutionTime = 60 * time.Second
 	// MaxScriptSizeBytes is the maximum allowed script size.
 	MaxScriptSizeBytes = 1024 * 1024 // 1MB
 )
