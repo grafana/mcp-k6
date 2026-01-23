@@ -26,7 +26,7 @@ func (i Info) IsLoggedIn(ctx context.Context) (bool, error) {
 
 	re := regexp.MustCompile(`(?m)^\s*token:\s*([0-9a-fA-F]{64})\s*$`)
 	if !re.MatchString(raw) {
-		return false, fmt.Errorf("missing token line in output:\n%s", raw)
+		return false, fmt.Errorf("unable to determine k6 cloud login status: unexpected output format")
 	}
 	token := re.FindStringSubmatch(raw)[1]
 
