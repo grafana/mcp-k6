@@ -142,6 +142,23 @@ func readPlaywrightScriptFromFile(ctx context.Context, path string) (string, err
 		return "", fmt.Errorf("invalid file path %q: %w", path, err)
 	}
 
+	// Resolve to absolute path and ensure it doesn't escape working directory
+	absPath, err := filepath.Abs(normalizedPath)
+	if err != nil {
+		return "", fmt.Errorf("failed to resolve absolute path for %q: %w", normalizedPath, err)
+	}
+
+	// Get current working directory
+	cwd, err := os.Getwd()
+	if err != nil {
+		return "", fmt.Errorf("failed to get current working directory: %w", err)
+	}
+
+	// Ensure the resolved path is within allowed directory, to prevent path traversal attacks
+	if !strings.HasPrefix(absPath, cwd+string(filepath.Separator)) && absPath != cwd {
+		return "", fmt.Errorf("file path must be within current working directory")
+	}
+
 	// #nosec G304 -- normalizedPath is sanitized before file access.
 	data, err := os.ReadFile(normalizedPath)
 	if err != nil {
