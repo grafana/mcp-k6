@@ -10,59 +10,6 @@ import (
 	"strings"
 )
 
-// BuildSectionIndex walks a documentation directory and creates a section index for a single version.
-func BuildSectionIndex(docsPath, version string) (*SectionIndex, error) {
-	var sections []Section
-
-	err := filepath.WalkDir(docsPath, func(path string, d fs.DirEntry, err error) error {
-		if err != nil {
-			return err
-		}
-
-		// Only process markdown files
-		if d.IsDir() || !strings.HasSuffix(d.Name(), ".md") {
-			return nil
-		}
-
-		section, err := ExtractSection(path, docsPath)
-		if err != nil {
-			// Log warning but continue indexing
-			fmt.Printf("Warning: failed to parse %s: %v\n", path, err)
-			return nil
-		}
-
-		sections = append(sections, *section)
-		return nil
-	})
-	if err != nil {
-		return nil, fmt.Errorf("failed to walk directory %s: %w", docsPath, err)
-	}
-
-	// Sort sections by weight, then by title
-	sort.Slice(sections, func(i, j int) bool {
-		if sections[i].Weight != sections[j].Weight {
-			return sections[i].Weight < sections[j].Weight
-		}
-		return sections[i].Title < sections[j].Title
-	})
-
-	// Create index with single version
-	index := &SectionIndex{
-		Versions: []string{version},
-		Latest:   version,
-		Sections: map[string][]Section{
-			version: sections,
-		},
-		BySlug: make(map[string]map[string]*Section),
-		ByPath: make(map[string]map[string]*Section),
-	}
-
-	// Build runtime indexes
-	index.buildRuntimeIndexes()
-
-	return index, nil
-}
-
 // BuildMultiVersionIndex builds a section index for multiple k6 versions.
 // The docsRootPath should contain subdirectories for each version (e.g., v1.4.x, v1.3.x).
 func BuildMultiVersionIndex(docsRootPath string, versions []string) (*SectionIndex, error) {
