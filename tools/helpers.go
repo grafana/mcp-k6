@@ -111,16 +111,3 @@ func executeCommand(cmd *exec.Cmd) (stdout, stderr string, exitCode int, err err
 	}
 	return stdout, stderr, exitCode, nil
 }
-
-// getPathType returns a safe representation of file paths for logging
-func getPathType(path string) string {
-	switch {
-	case strings.Contains(path, "temp"), strings.Contains(path, "tmp"):
-		return "temporary"
-	case strings.HasSuffix(path, ".js"):
-		return "javascript"
-	case strings.HasSuffix(path, ".ts"):
-		return "typescript"
-	}
-	return "other"
-}

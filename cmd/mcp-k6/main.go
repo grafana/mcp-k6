@@ -72,49 +72,14 @@ func run(ctx context.Context, logger *slog.Logger, stderr io.Writer, args []stri
 
 	logger.Info("Detected k6 executable", slog.String("path", k6Info.Path))
 
-	// Load sections index
-	logger.Info("Loading sections index")
-	sectionsIdx, err := sections.LoadJSON(k6mcp.SectionsIndex)
+	finder, err := loadSectionsIndex(logger)
 	if err != nil {
-		logger.Error("Error loading sections index", "error", err)
-		_, _ = fmt.Fprintf(stderr, "Failed to load sections index: %v\n", err)
+		logger.Error("Failed to load sections index", slog.String("error", err.Error()))
 		return 1
 	}
-	finder := sections.NewFinder(sectionsIdx)
 
-	totalSections := 0
-	for _, secs := range sectionsIdx.Sections {
-		totalSections += len(secs)
-	}
-	logger.Info("Loaded sections index",
-		slog.Int("version_count", len(sectionsIdx.Versions)),
-		slog.Int("total_sections", totalSections),
-		slog.String("latest_version", sectionsIdx.Latest))
-
-	s := server.NewMCPServer(
-		"k6",
-		buildinfo.Version,
-		server.WithResourceCapabilities(true, true),
-		server.WithLogging(),
-		server.WithRecovery(),
-		server.WithInstructions(instructions),
-	)
-
-	// Register tools
-	tools.RegisterInfoTool(s)
-	tools.RegisterValidateTool(s)
-	tools.RegisterRunTool(s)
-	tools.RegisterSearchTerraformTool(s)
-	tools.RegisterListSectionsTool(s, finder)
-	tools.RegisterGetDocumentationTool(s, finder)
-
-	// Register resources
-	resources.RegisterBestPracticesResource(s)
-	resources.RegisterTypeDefinitionsResources(s)
-
-	// Register prompts
-	prompts.RegisterGenerateScriptPrompt(s)
-	prompts.RegisterConvertPlaywrightScriptPrompt(s)
+	// Create and wire up the MCP server instance.
+	s := createServer(finder)
 
 	if *transport == "http" {
 		httpOpts := []server.StreamableHTTPOption{
@@ -149,6 +114,56 @@ func run(ctx context.Context, logger *slog.Logger, stderr io.Writer, args []stri
 	}
 
 	return 0
+}
+
+func createServer(finder *sections.Finder) *server.MCPServer {
+	s := server.NewMCPServer(
+		"k6",
+		buildinfo.Version,
+		server.WithResourceCapabilities(true, true),
+		server.WithLogging(),
+		server.WithRecovery(),
+		server.WithInstructions(instructions),
+	)
+
+	// Register tools
+	tools.RegisterInfoTool(s)
+	tools.RegisterValidateTool(s)
+	tools.RegisterRunTool(s)
+	tools.RegisterSearchTerraformTool(s)
+	tools.RegisterListSectionsTool(s, finder)
+	tools.RegisterGetDocumentationTool(s, finder)
+
+	// Register resources
+	resources.RegisterBestPracticesResource(s)
+	resources.RegisterTypeDefinitionsResources(s)
+
+	// Register prompts
+	prompts.RegisterGenerateScriptPrompt(s)
+	prompts.RegisterConvertPlaywrightScriptPrompt(s)
+
+	return s
+}
+
+func loadSectionsIndex(logger *slog.Logger) (*sections.Finder, error) {
+	// Load sections index
+	logger.Info("Loading sections index")
+	sectionsIdx, err := sections.LoadJSON(k6mcp.SectionsIndex)
+	if err != nil {
+		return nil, fmt.Errorf("failed to load sections index: %w", err)
+	}
+	finder := sections.NewFinder(sectionsIdx)
+
+	totalSections := 0
+	for _, secs := range sectionsIdx.Sections {
+		totalSections += len(secs)
+	}
+	logger.Info("Loaded sections index",
+		slog.Int("version_count", len(sectionsIdx.Versions)),
+		slog.Int("total_sections", totalSections),
+		slog.String("latest_version", sectionsIdx.Latest))
+
+	return finder, nil
 }
 
 func handleK6LookupError(logger *slog.Logger, stderr io.Writer, err error) int {
