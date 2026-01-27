@@ -20,7 +20,7 @@ An experimental MCP (Model Context Protocol) server for k6, written in Go. Provi
 - **resources/**: MCP resources (best practices guide, TypeScript type definitions)
 
 ### Key Dependencies
-- `github.com/mark3labs/mcp-go` v0.32.0 - Core MCP library for server implementation
+- `github.com/mark3labs/mcp-go` v0.43.2 - Core MCP library for server implementation
 - k6 binary must be available in PATH for script execution
 
 ### Build System
