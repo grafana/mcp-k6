@@ -1,15 +1,15 @@
 # k6 MCP Server
 
-An **experimental** MCP (Model Context Protocol) server for k6, written in Go. It offers script validation, test execution, fast full‑text documentation search (embedded SQLite FTS5), and guided script generation.
+An **experimental** MCP (Model Context Protocol) server for k6, written in Go. It offers script validation, test execution, documentation browsing, and guided script generation.
 
 > ⚠️ This project is still experimental. Expect sharp edges, keep a local clone up to date, and share feedback or issues so we can iterate quickly.
 
 ## Features
 
 ### Tools
-- **Script Validation**: `validate_k6_script` runs k6 scripts with minimal configuration (1 VU, 1 iteration) and returns actionable errors to help quickly produce correct code.
-- **Test Execution**: `run_k6_script` runs k6 performance tests locally with configurable VUs, duration, stages, and options, and, when possible, extracts insights from the results.
-- **Documentation Search (default)**: `search_k6_documentation` provides fast full‑text search over the official k6 docs (embedded SQLite FTS5 index) to help write modern, efficient k6 scripts.
+- **Script Validation**: `validate_script` runs k6 scripts with minimal configuration (1 VU, 1 iteration) and returns actionable errors to help quickly produce correct code.
+- **Test Execution**: `run_script` runs k6 performance tests locally with configurable VUs, duration, stages, and options, and, when possible, extracts insights from the results.
+- **Documentation Browsing**: `list_sections` and `get_documentation` provide structured navigation of the official k6 docs and allow retrieving full markdown for specific sections.
 
 ### Resources
 - **Best Practices Resources**: Comprehensive k6 scripting guidelines and patterns to help you write effective, idiomatic, and correct tests.
@@ -144,7 +144,7 @@ make --version
    cd mcp-k6
    ```
 
-2. **Prepare assets and install the server** (builds the documentation index, embeds resources, installs `mcp-k6` into your Go bin):
+2. **Prepare assets and install the server** (builds docs assets, embeds resources, installs `mcp-k6` into your Go bin):
    ```bash
    make install
    ```
@@ -164,9 +164,62 @@ Whenever docs or resources change, rebuild embeds with:
 make prepare
 ```
 
+## HTTP Transport Mode
+
+mcp-k6 supports two transport modes:
+
+1.  **Stdio (Default):** Best for local, single-user setups where your editor or MCP client manages the server process directly.
+2.  **Streamable HTTP:** Ideal for remote deployments, shared team instances, or complex network setups where clients connect over the network.
+
+### Running in HTTP Mode
+
+To start the server in HTTP mode, use the `-transport=http` flag:
+
+**Native:**
+```bash
+mcp-k6 -transport=http -addr=:8080
+```
+
+**Docker:**
+```bash
+docker run -p 8080:8080 grafana/mcp-k6 -transport=http -addr=:8080
+```
+
+### Configuration Flags
+
+-   `-addr`: Listening address (default `:8080`). To listen on all interfaces, use `:8080` or `0.0.0.0:8080`.
+-   `-endpoint`: Endpoint path for the MCP server (default `/mcp`).
+-   `-stateless`: Run in stateless mode without session tracking (default `false`).
+
+## Remote Deployment (Team Usage)
+
+You can deploy mcp-k6 as a shared service for your team. This allows multiple users to connect their MCP clients (like Claude Desktop or Cursor) to a central instance, sharing the execution environment.
+
+**Example Deployment:**
+
+1.  Deploy the Docker container to your infrastructure (e.g., Kubernetes, EC2).
+2.  Expose port `8080`.
+3.  Configure the server to listen on all interfaces: `-addr=0.0.0.0:8080`.
+
+**Security Note:** The server has no built-in authentication. It should be deployed in a trusted network (VPN, private VPC) or behind a secure proxy that handles authentication.
+
 ### Editor Integrations
 
-`mcp-k6` speaks MCP over stdio. Choose the configuration that matches your installation method.
+`mcp-k6` speaks MCP over stdio by default, but can be configured for Streamable HTTP.
+
+#### Connect via Streamable HTTP
+
+If you are running the server in HTTP mode (locally or remotely), configure your editor to connect via Streamable HTTP:
+
+```json
+{
+  "mcpServers": {
+    "remote-k6": {
+      "url": "http://your-server-ip:8080/mcp"
+    }
+  }
+}
+```
 
 #### Cursor IDE
 
@@ -178,14 +231,7 @@ Create or update `~/.cursor/mcp_servers.json` (or the profile-specific config):
   "mcpServers": {
     "k6": {
       "command": "docker",
-      "args": [
-        "run",
-        "--rm",
-        "-i",
-        "grafana/mcp-k6",
-        "-t",
-        "stdio"
-      ]
+      "args": ["run", "--rm", "-i", "grafana/mcp-k6"]
     }
   }
 }
@@ -196,9 +242,7 @@ Create or update `~/.cursor/mcp_servers.json` (or the profile-specific config):
 {
   "mcpServers": {
     "mcp-k6": {
-      "command": "mcp-k6",
-      "transport": "stdio",
-      "env": {}
+      "command": "mcp-k6"
     }
   }
 }
@@ -212,7 +256,7 @@ Add the server to Claude Code:
 
 **Docker:**
 ```bash
-claude mcp add --scope=user --transport=stdio k6 docker run --rm -i mcp-k6
+claude mcp add --scope=user --transport=stdio k6 -- docker run --rm -i grafana/mcp-k6
 ```
 
 **Native:**
@@ -232,14 +276,7 @@ Place one of the following snippets in your Claude Desktop MCP configuration fil
   "mcpServers": {
     "k6": {
       "command": "docker",
-      "args": [
-        "run",
-        "--rm",
-        "-i",
-        "grafana/mcp-k6",
-        "-t",
-        "stdio"
-      ]
+      "args": ["run", "--rm", "-i", "grafana/mcp-k6"]
     }
   }
 }
@@ -250,9 +287,7 @@ Place one of the following snippets in your Claude Desktop MCP configuration fil
 {
   "mcpServers": {
     "mcp-k6": {
-      "command": "mcp-k6",
-      "transport": "stdio",
-      "env": {}
+      "command": "mcp-k6"
     }
   }
 }
@@ -273,14 +308,7 @@ Codex CLI (experimental) supports MCP servers over stdio.
   "mcpServers": {
     "k6": {
       "command": "docker",
-      "args": [
-        "run",
-        "--rm",
-        "-i",
-        "grafana/mcp-k6",
-        "-t",
-        "stdio"
-      ]
+      "args": ["run", "--rm", "-i", "grafana/mcp-k6"]
     }
   }
 }
@@ -291,9 +319,7 @@ Codex CLI (experimental) supports MCP servers over stdio.
 {
   "mcpServers": {
     "mcp-k6": {
-      "command": "mcp-k6",
-      "transport": "stdio",
-      "env": {}
+      "command": "mcp-k6"
     }
   }
 }
@@ -313,7 +339,7 @@ Parameters:
 
 Returns: `valid`, `exit_code`, `stdout`, `stderr`, `error`, `duration`
 
-### run_test
+### run_script
 
 Run k6 performance tests with configurable parameters.
 
@@ -327,20 +353,30 @@ Parameters:
 
 Returns: `success`, `exit_code`, `stdout`, `stderr`, `error`, `duration`, `metrics`, `summary`
 
-### search_documentation
+### list_sections
 
-Full‑text search over the embedded k6 docs index (SQLite FTS5).
+Browse the embedded documentation hierarchy without overwhelming model context. The tool returns a depth-limited tree (default depth 1) so you can progressively expand only the branches you need.
 
 Parameters:
-- `keywords` (string, required): FTS5 query string
-- `max_results` (number, optional, default 10, max 20)
+- `version` (string, optional): Specific docs version (`v1.4.x`, `all` for list).
+- `category` (string, optional): Filter to a top-level docs category.
+- `depth` (number, optional, default 1, max 5): How many levels of children to include in the tree. Depth counts from the root you request.
+- `root_slug` (string, optional): List the immediate children under this slug (e.g., `using-k6`), just like `ls` inside a folder. Combine with `depth` to include deeper descendants.
 
-FTS5 tips:
-- Space‑separated words imply AND: `checks thresholds` → `checks AND thresholds`
-- Quotes for exact phrases: `"load testing"`
-- Operators supported: `AND`, `OR`, `NEAR`, parentheses, prefix `http*`
+Response highlights:
+- `tree`: Depth-limited nodes with inline `children`, `child_count`, and `has_more` so you know when to fetch another layer.
+- `version` and `available_versions`: Confirm the docs version in use.
+- `depth` and `root_slug`: Echo the arguments used so agents can decide whether to dive deeper.
 
-Returns an array of results with `title`, `content`, `path`.
+### get_documentation
+
+Retrieve full markdown content for a specific documentation section.
+
+Parameters:
+- `slug` (string, required): Section slug (use list_sections to discover them).
+- `version` (string, optional): Specific docs version (`v1.4.x`, etc.).
+
+Returns `section`, `content`, `version`, and `available_versions`.
 
 ## Available Resources
 
@@ -379,13 +415,13 @@ Run `make list` to get a list of available Make commands.
 # The system will execute the test and provide detailed metrics
 ```
 
-### Documentation Search
+### Documentation Browsing
 
 ```bash
 # In your MCP-enabled editor, ask:
-"Search for k6 authentication examples"
-"How do I use thresholds in k6?"
-"Show me WebSocket testing patterns"
+"List the top-level k6 documentation sections"
+"Show me the scenarios section documentation"
+"Fetch the markdown for javascript-api/k6-http/request"
 ```
 
 ### Script Generation
@@ -399,16 +435,11 @@ Run `make list` to get a list of available Make commands.
 
 ## Troubleshooting
 
-### Build fails with “dist/index.db: no matching files”
-Generate the docs index first:
+### Build fails with “dist/sections.json: no matching files”
+Generate the docs assets first:
 ```bash
-make index
+make docs
 ```
-
-### Search returns no results
-- Ensure the index exists: `ls dist/index.db`
-- Rebuild the index: `make index`
-- Try simpler queries, or quote phrases: `"load testing"`
 
 ### MCP Server Not Found
 If your editor can't find the mcp-k6 server:

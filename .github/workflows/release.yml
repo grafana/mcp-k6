@@ -43,7 +43,7 @@ jobs:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
 
       - name: Upload Linux/Windows artifacts
-        uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02 # v4
+        uses: actions/upload-artifact@b7c566a772e6b6bfb58ed0dc250532a479d7789f # v6
         with:
           name: linux-windows-binaries
           path: release/
@@ -77,7 +77,7 @@ jobs:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
 
       - name: Upload Darwin artifacts
-        uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02 # v4
+        uses: actions/upload-artifact@b7c566a772e6b6bfb58ed0dc250532a479d7789f # v6
         with:
           name: darwin-binaries
           path: release/
@@ -99,13 +99,13 @@ jobs:
           persist-credentials: false
 
       - name: Download Linux/Windows artifacts
-        uses: actions/download-artifact@d3f86a106a0bac45b974a628896c90dbdf5c8093 # v4
+        uses: actions/download-artifact@37930b1c2abaa49bbe596cd826c3c89aef350131 # v7
         with:
           name: linux-windows-binaries
           path: release/
 
       - name: Download Darwin artifacts
-        uses: actions/download-artifact@d3f86a106a0bac45b974a628896c90dbdf5c8093 # v4
+        uses: actions/download-artifact@37930b1c2abaa49bbe596cd826c3c89aef350131 # v7
         with:
           name: darwin-binaries
           path: release/
@@ -157,7 +157,7 @@ jobs:
           fi
 
       - name: Build and Push to Docker Hub
-        uses: grafana/shared-workflows/actions/build-push-to-dockerhub@74b7ce2ebd577c25266d972683e376d9f62d0b07 # build-push-to-dockerhub/v0.4.0
+        uses: grafana/shared-workflows/actions/build-push-to-dockerhub@f02d5da7ddff4ea32bbe5034c7c70e90d2b9622c # build-push-to-dockerhub/v0.4.1
         with:
           context: .
           file: ./Dockerfile

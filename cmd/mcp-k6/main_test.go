@@ -1,5 +1,3 @@
-//go:build fts5
-
 package main
 
 import (
@@ -22,7 +20,7 @@ func TestRunFailsWhenK6Missing(t *testing.T) {
 	logger := newTestLogger()
 	var stderr bytes.Buffer
 
-	code := run(context.Background(), logger, &stderr)
+	code := run(context.Background(), logger, &stderr, nil)
 	assert.NotEqual(t, 0, code, "run should return non-zero exit code when k6 is missing")
 	assert.Contains(t, stderr.String(), "mcp-k6 requires the `k6` executable")
 }
@@ -47,7 +45,7 @@ func TestRunSucceedsWithStubbedK6(t *testing.T) {
 	logger := newTestLogger()
 	var stderr bytes.Buffer
 
-	code := run(context.Background(), logger, &stderr)
+	code := run(context.Background(), logger, &stderr, nil)
 	assert.Equal(t, 0, code, "run should succeed when k6 is available")
 }
 
@@ -68,8 +66,8 @@ func createK6Stub(t *testing.T, dir string) {
 	}
 
 	path := filepath.Join(dir, filename)
+	//nolint:gosec,forbidigo // Test helper needs executable permissions for the stub.
 	if err := os.WriteFile(path, []byte(content), 0o700); err != nil {
 		t.Fatalf("failed to write k6 stub: %v", err)
 	}
-
 }
