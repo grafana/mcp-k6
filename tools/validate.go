@@ -11,6 +11,8 @@ import (
 	"strings"
 	"time"
 
+	"github.com/grafana/mcp-k6/internal/helpers"
+
 	"github.com/grafana/mcp-k6/internal/logging"
 	"github.com/mark3labs/mcp-go/mcp"
 	"github.com/mark3labs/mcp-go/server"
@@ -182,7 +184,7 @@ func validateK6Script(ctx context.Context, script string) (*ValidationResponse, 
 
 	// Execute k6 validation
 	logger.DebugContext(ctx, "Starting k6 validation execution",
-		slog.String("script_path", getPathType(tempFile)))
+		slog.String("script_path", helpers.GetPathType(tempFile)))
 	result, err := executeK6Validation(ctx, tempFile)
 	if err != nil {
 		return nil, fmt.Errorf("validating k6 script failed; reason: %w", err)
@@ -274,7 +276,7 @@ func executeK6Validation(ctx context.Context, scriptPath string) (*ValidationRes
 
 	logger.DebugContext(ctx, "Executing k6 validation command",
 		slog.String("command", "k6 run"),
-		slog.String("script_path", getPathType(scriptPath)),
+		slog.String("script_path", helpers.GetPathType(scriptPath)),
 	)
 
 	// Execute command and capture output

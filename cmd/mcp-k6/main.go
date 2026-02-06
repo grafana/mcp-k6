@@ -4,6 +4,7 @@ package main
 import (
 	"context"
 	"errors"
+	"flag"
 	"fmt"
 	"io"
 	"log/slog"
@@ -39,10 +40,24 @@ var serveStdio = server.ServeStdio
 func main() {
 	logger := logging.Default()
 	//nolint:forbidigo // main must exit with the server status code.
-	os.Exit(run(context.Background(), logger, os.Stderr))
+	os.Exit(run(context.Background(), logger, os.Stderr, os.Args[1:]))
 }
 
-func run(ctx context.Context, logger *slog.Logger, stderr io.Writer) int {
+func run(ctx context.Context, logger *slog.Logger, stderr io.Writer, args []string) int {
+	fs := flag.NewFlagSet("mcp-k6", flag.ContinueOnError)
+	fs.SetOutput(stderr)
+
+	var (
+		transport = fs.String("transport", "stdio", "Transport mode: stdio or http")
+		addr      = fs.String("addr", ":8080", "HTTP address to listen on")
+		endpoint  = fs.String("endpoint", "/mcp", "Endpoint path for HTTP transport")
+		stateless = fs.Bool("stateless", false, "Run in stateless mode (no session tracking)")
+	)
+
+	if err := fs.Parse(args); err != nil {
+		return 1
+	}
+
 	logger.Info("Starting k6 MCP server",
 		slog.String("version", buildinfo.Version),
 		slog.String("commit", buildinfo.Commit),
@@ -57,25 +72,51 @@ func run(ctx context.Context, logger *slog.Logger, stderr io.Writer) int {
 
 	logger.Info("Detected k6 executable", slog.String("path", k6Info.Path))
 
-	// Load sections index
-	logger.Info("Loading sections index")
-	sectionsIdx, err := sections.LoadJSON(k6mcp.SectionsIndex)
+	finder, err := loadSectionsIndex(logger)
 	if err != nil {
-		logger.Error("Error loading sections index", "error", err)
-		_, _ = fmt.Fprintf(stderr, "Failed to load sections index: %v\n", err)
+		logger.Error("Failed to load sections index", slog.String("error", err.Error()))
 		return 1
 	}
-	finder := sections.NewFinder(sectionsIdx)
 
-	totalSections := 0
-	for _, secs := range sectionsIdx.Sections {
-		totalSections += len(secs)
+	// Create and wire up the MCP server instance.
+	s := createServer(finder)
+
+	if *transport == "http" {
+		httpOpts := []server.StreamableHTTPOption{
+			server.WithEndpointPath(*endpoint),
+		}
+
+		if *stateless {
+			httpOpts = append(httpOpts, server.WithStateLess(true))
+		}
+
+		httpServer := server.NewStreamableHTTPServer(s, httpOpts...)
+
+		logger.Info("Starting MCP server with Streamable HTTP",
+			slog.String("addr", *addr),
+			slog.String("endpoint", *endpoint),
+			slog.Bool("stateless", *stateless),
+		)
+
+		if err := httpServer.Start(*addr); err != nil {
+			logger.Error("Server error", slog.String("error", err.Error()))
+			_, _ = fmt.Fprintf(stderr, "MCP server exited with error: %v\n", err)
+			return 1
+		}
+		return 0
 	}
-	logger.Info("Loaded sections index",
-		slog.Int("version_count", len(sectionsIdx.Versions)),
-		slog.Int("total_sections", totalSections),
-		slog.String("latest_version", sectionsIdx.Latest))
 
+	logger.Info("Starting MCP server on stdio")
+	if err := serveStdio(s); err != nil {
+		logger.Error("Server error", slog.String("error", err.Error()))
+		_, _ = fmt.Fprintf(stderr, "MCP server exited with error: %v\n", err)
+		return 1
+	}
+
+	return 0
+}
+
+func createServer(finder *sections.Finder) *server.MCPServer {
 	s := server.NewMCPServer(
 		"k6",
 		buildinfo.Version,
@@ -101,14 +142,28 @@ func run(ctx context.Context, logger *slog.Logger, stderr io.Writer) int {
 	prompts.RegisterGenerateScriptPrompt(s)
 	prompts.RegisterConvertPlaywrightScriptPrompt(s)
 
-	logger.Info("Starting MCP server on stdio")
-	if err := serveStdio(s); err != nil {
-		logger.Error("Server error", slog.String("error", err.Error()))
-		_, _ = fmt.Fprintf(stderr, "MCP server exited with error: %v\n", err)
-		return 1
-	}
+	return s
+}
 
-	return 0
+func loadSectionsIndex(logger *slog.Logger) (*sections.Finder, error) {
+	// Load sections index
+	logger.Info("Loading sections index")
+	sectionsIdx, err := sections.LoadJSON(k6mcp.SectionsIndex)
+	if err != nil {
+		return nil, fmt.Errorf("failed to load sections index: %w", err)
+	}
+	finder := sections.NewFinder(sectionsIdx)
+
+	totalSections := 0
+	for _, secs := range sectionsIdx.Sections {
+		totalSections += len(secs)
+	}
+	logger.Info("Loaded sections index",
+		slog.Int("version_count", len(sectionsIdx.Versions)),
+		slog.Int("total_sections", totalSections),
+		slog.String("latest_version", sectionsIdx.Latest))
+
+	return finder, nil
 }
 
 func handleK6LookupError(logger *slog.Logger, stderr io.Writer, err error) int {

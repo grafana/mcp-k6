@@ -20,7 +20,7 @@ COPY . .
 RUN make build
 
 # Final stage
-FROM grafana/k6:latest-with-browser
+FROM grafana/k6:latest-with-browser@sha256:b433632f55ef79968c05eedd3b65afa42eebbbdc3be52c3cac36cecd33ec625b
 
 LABEL io.modelcontextprotocol.server.name="io.github.grafana/mcp-k6"
 
@@ -34,4 +34,7 @@ COPY --from=builder --chown=12345:12345 /app/mcp-k6 /home/k6/
 USER k6
 
 # Run the mcp-k6 application instead of k6
-ENTRYPOINT ["/home/k6/mcp-k6"] 
+ENTRYPOINT ["/home/k6/mcp-k6"]
+
+# Expose port 8080 for Streamable HTTP transport
+EXPOSE 8080 
