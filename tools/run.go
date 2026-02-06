@@ -11,6 +11,8 @@ import (
 	"strings"
 	"time"
 
+	"github.com/grafana/mcp-k6/internal/helpers"
+
 	"github.com/grafana/mcp-k6/internal/logging"
 	"github.com/grafana/mcp-k6/internal/security"
 	"github.com/mark3labs/mcp-go/mcp"
@@ -181,7 +183,7 @@ func RunK6Test(ctx context.Context, script string, options *RunOptions) (*RunRes
 
 	// Execute k6 test
 	logger.DebugContext(ctx, "Starting k6 test execution",
-		slog.String("script_path", getPathType(tempFile)),
+		slog.String("script_path", helpers.GetPathType(tempFile)),
 		slog.Any("options", sanitizeRunOptions(options)))
 	result, err := executeK6Test(ctx, tempFile, options)
 	if err != nil {
@@ -327,7 +329,7 @@ func executeK6Test(ctx context.Context, scriptPath string, options *RunOptions) 
 
 	logger.DebugContext(ctx, "Executing k6 test command",
 		slog.Any("args", args),
-		slog.String("script_path", getPathType(scriptPath)),
+		slog.String("script_path", helpers.GetPathType(scriptPath)),
 	)
 
 	// Prepare k6 command
