@@ -72,32 +72,6 @@ func (f *Finder) GetByCategory(category, version string) ([]Section, error) {
 	return results, nil
 }
 
-// Search performs a simple text search across titles, descriptions, and slugs for a version.
-// If version is empty, uses the latest version.
-func (f *Finder) Search(query, version string) ([]Section, error) {
-	version = f.resolveVersion(version)
-
-	if !f.index.HasVersion(version) {
-		return nil, fmt.Errorf("version not found: %s", version)
-	}
-
-	query = strings.ToLower(query)
-	allSections := f.index.GetVersion(version)
-	var results []Section
-
-	for _, section := range allSections {
-		titleMatch := strings.Contains(strings.ToLower(section.Title), query)
-		descMatch := strings.Contains(strings.ToLower(section.Description), query)
-		slugMatch := strings.Contains(strings.ToLower(section.Slug), query)
-
-		if titleMatch || descMatch || slugMatch {
-			results = append(results, section)
-		}
-	}
-
-	return results, nil
-}
-
 // GetCategories returns unique top-level categories for a version.
 // If version is empty, uses the latest version.
 func (f *Finder) GetCategories(version string) ([]string, error) {

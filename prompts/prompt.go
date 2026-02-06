@@ -2,6 +2,7 @@ package prompts
 
 import (
 	"context"
+	"fmt"
 	"log/slog"
 
 	"github.com/grafana/mcp-k6/internal/logging"
@@ -15,7 +16,7 @@ type promptHandler func(context.Context, mcp.GetPromptRequest) (*mcp.GetPromptRe
 // withPromptLogger wraps a prompt handler to inject a logger into context and provide panic recovery.
 // The logger is configured with the prompt name and made available via logging.LoggerFromContext.
 func withPromptLogger(promptName string, handler promptHandler) server.PromptHandlerFunc {
-	return func(ctx context.Context, request mcp.GetPromptRequest) (*mcp.GetPromptResult, error) {
+	return func(ctx context.Context, request mcp.GetPromptRequest) (result *mcp.GetPromptResult, err error) {
 		// Create prompt-specific logger and add to context
 		logger := logging.WithPrompt(promptName)
 		ctx = logging.ContextWithLogger(ctx, logger)
@@ -26,6 +27,8 @@ func withPromptLogger(promptName string, handler promptHandler) server.PromptHan
 				logger.ErrorContext(ctx, "panic in prompt execution",
 					slog.String("prompt", promptName),
 					slog.Any("panic", r))
+				result = nil
+				err = fmt.Errorf("internal error in prompt execution: %s", r)
 			}
 		}()
 

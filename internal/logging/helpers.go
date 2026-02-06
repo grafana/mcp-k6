@@ -7,6 +7,8 @@ import (
 	"log/slog"
 	"strings"
 	"time"
+
+	"github.com/grafana/mcp-k6/internal/helpers"
 )
 
 // RequestStart logs the beginning of an MCP request.
@@ -118,7 +120,7 @@ func FileOperation(ctx context.Context, component string, operation string, path
 
 	attrs := []any{
 		slog.String("operation", operation),
-		slog.String("path_type", getPathType(path)), // Avoid logging full paths
+		slog.String("path_type", helpers.GetPathType(path)), // Avoid logging full paths
 	}
 	if err != nil {
 		attrs = append(attrs,
@@ -182,18 +184,4 @@ func getErrorType(err error) string {
 	}
 
 	return "unknown"
-}
-
-// getPathType returns a safe representation of file paths.
-func getPathType(path string) string {
-	if strings.Contains(path, "temp") || strings.Contains(path, "tmp") {
-		return "temporary"
-	}
-	if strings.HasSuffix(path, ".js") {
-		return "javascript"
-	}
-	if strings.HasSuffix(path, ".ts") {
-		return "typescript"
-	}
-	return "other"
 }
