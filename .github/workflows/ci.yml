@@ -48,4 +48,25 @@ jobs:
           cache: false
 
       - name: Test
-        run: make tests
+        run: make test-unit
+
+  e2e:
+    name: E2E MCP Tests
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout
+        uses: actions/checkout@de0fac2e4500dabe0009e67214ff5f5447ce83dd # v6
+        with:
+          persist-credentials: false
+
+      - name: Setup Go
+        uses: actions/setup-go@7a3fe6cf4cb3a834922a1244abfce67bcef6a0c5 # v6
+        with:
+          go-version-file: 'go.mod'
+          cache: false
+
+      - name: Install k6
+        uses: grafana/setup-k6-action@ffe7d7290dfa715e48c2ccc924d068444c94bde2 # v1
+
+      - name: Run E2E Tests
+        run: make test-e2e
