@@ -3,6 +3,7 @@ package tools
 
 import (
 	"context"
+	"fmt"
 	"log/slog"
 
 	"github.com/grafana/mcp-k6/internal/logging"
@@ -13,7 +14,7 @@ import (
 // withToolLogger wraps a tool handler to inject a logger into context and provide panic recovery.
 // The logger is configured with the tool name and made available via logging.LoggerFromContext.
 func withToolLogger(toolName string, handler server.ToolHandlerFunc) server.ToolHandlerFunc {
-	return func(ctx context.Context, request mcp.CallToolRequest) (*mcp.CallToolResult, error) {
+	return func(ctx context.Context, request mcp.CallToolRequest) (result *mcp.CallToolResult, err error) {
 		// Create tool-specific logger and add to context
 		logger := logging.WithTool(toolName)
 		ctx = logging.ContextWithLogger(ctx, logger)
@@ -24,6 +25,8 @@ func withToolLogger(toolName string, handler server.ToolHandlerFunc) server.Tool
 				logger.ErrorContext(ctx, "panic in tool execution",
 					slog.String("tool", toolName),
 					slog.Any("panic", r))
+				result = nil
+				err = fmt.Errorf("internal error in tool execution: %s", r)
 			}
 		}()
 
