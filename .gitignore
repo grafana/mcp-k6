@@ -12,3 +12,6 @@ dist/
 
 # Ignore GoReleaser output
 release/
+
+# E2E test binary (built by xk6)
+e2e/k6
