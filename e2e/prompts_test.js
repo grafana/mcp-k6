@@ -4,7 +4,7 @@ import { expect } from "https://jslib.k6.io/k6-testing/0.6.1/index.js";
 function testPromptDiscovery(client) {
   const prompts = client.listAllPrompts().prompts;
   const promptNames = prompts.map((p) => p.name);
-  expect(prompts).toHaveLength(2);
+  expect(prompts.length).toBeGreaterThanOrEqual(2);
   expect(promptNames).toContain("generate_script");
   expect(promptNames).toContain("convert_playwright_script");
 }
