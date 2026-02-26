@@ -2,7 +2,8 @@
 
 An **experimental** MCP (Model Context Protocol) server for k6, written in Go. It offers script validation, test execution, documentation browsing, and guided script generation.
 
-> ⚠️ This project is still experimental. Expect sharp edges, keep a local clone up to date, and share feedback or issues so we can iterate quickly.
+> [!IMPORTANT]  
+> This project is still experimental. Expect sharp edges, keep a local clone up to date, and share feedback or issues so we can iterate quickly.
 
 ## Features
 
@@ -21,7 +22,11 @@ An **experimental** MCP (Model Context Protocol) server for k6, written in Go. I
 ## Getting Started
 
 Choose your preferred installation method:
-
+- [🐳 Option 1: Docker (Recommended)](#option-1-docker-recommended)
+- [🍎 Option 2: Homebrew macOS](#option-2-homebrew-macos)
+- [🐧 Option 3: Package Installation (Linux)](#option-3-package-installation-linux)
+- [💻 Option 4: Native Installation](#option-4-native-installation)
+---
 ### Option 1: Docker (Recommended)
 
 The easiest way to get started. The Docker image includes k6 and all dependencies.
@@ -33,9 +38,10 @@ The easiest way to get started. The Docker image includes k6 and all dependencie
    ```bash
    docker pull grafana/mcp-k6:latest
    ```
-
-That's it! You're ready to run the containerized server. Proceed to [Editor Integrations](#editor-integrations) to configure your editor.
-
+> [!NOTE]  
+> ### That's it! You're ready to run the containerized server.
+> Proceed to [Editor Integrations](#editor-integrations) to configure your editor.
+---
 ### Option 2: Homebrew macOS
 
 Install mcp-k6 using Homebrew. k6 will be automatically installed as a dependency.
@@ -52,11 +58,11 @@ brew install mcp-k6
 # Verify installation
 mcp-k6 --version
 ```
+> [!NOTE]  
+> To update to a newer version, download and install the latest formula again, or use `brew upgrade` if installed from the tap.
+> Proceed to [Editor Integrations](#editor-integrations) to configure your editor.
 
-To update to a newer version, download and install the latest formula again, or use `brew upgrade` if installed from the tap.
-
-Proceed to [Editor Integrations](#editor-integrations) to configure your editor.
-
+---
 ### Option 3: Package Installation (Linux)
 
 Pre-built packages are available for Debian/Ubuntu and RHEL/Fedora/CentOS distributions.
@@ -117,8 +123,10 @@ sudo yum install https://github.com/grafana/mcp-k6/releases/latest/download/mcp-
 mcp-k6 --version
 ```
 
-The binary is installed to `/usr/bin/mcp-k6`. Proceed to [Editor Integrations](#editor-integrations) to configure your editor.
-
+> [!NOTE]  
+> The binary is installed to `/usr/bin/mcp-k6`.
+> Proceed to [Editor Integrations](#editor-integrations) to configure your editor.
+---
 
 ### Option 4: Native Installation
 
@@ -163,7 +171,9 @@ Whenever docs or resources change, rebuild embeds with:
 ```bash
 make prepare
 ```
-
+> [!NOTE]  
+> Proceed to [Editor Integrations](#editor-integrations) to configure your editor.
+---
 ## HTTP Transport Mode
 
 mcp-k6 supports two transport modes:
