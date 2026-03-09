@@ -3,7 +3,7 @@ module github.com/grafana/mcp-k6
 go 1.24.9
 
 require (
-	github.com/mark3labs/mcp-go v0.44.0
+	github.com/mark3labs/mcp-go v0.45.0
 	github.com/stretchr/testify v1.11.1
 	gopkg.in/yaml.v3 v3.0.1
 )
