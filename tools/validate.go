@@ -257,7 +257,7 @@ func executeK6Validation(ctx context.Context, scriptPath string) (*ValidationRes
 	}
 
 	// Prepare k6 command with minimal configuration and additional validation flags
-	cmd := exec.CommandContext(cmdCtx, "k6", "run",
+	cmd := exec.CommandContext(cmdCtx, "k6", "run", // #nosec G204
 		"--vus", "1",
 		"--iterations", "1",
 		"--quiet",
@@ -781,13 +781,14 @@ func addWorkflowIntegrationSuggestions(result *ValidationResponse) {
 	switch {
 	case result.Valid && result.Summary.ReadyToRun:
 		// Script is ready to run - suggest next steps
-		workflowSuggestions := []string{
+		workflowSuggestions := make([]string, 0, 5+len(result.NextSteps))
+		workflowSuggestions = append(workflowSuggestions,
 			"✓ Validation passed! Your script is ready for load testing",
 			"Use the 'run' tool to execute your script with different configurations:",
 			"  • Basic test: {\"vus\": 1, \"duration\": \"30s\"}",
 			"  • Load test: {\"vus\": 10, \"duration\": \"5m\"}",
 			"  • Stress test: {\"vus\": 50, \"duration\": \"10m\"}",
-		}
+		)
 
 		// Insert workflow suggestions at the beginning of next steps
 		result.NextSteps = append(workflowSuggestions, result.NextSteps...)

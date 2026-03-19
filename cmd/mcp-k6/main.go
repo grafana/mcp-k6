@@ -24,6 +24,7 @@ func main() {
 	fs.StringVar(&cfg.Endpoint, "endpoint", cfg.Endpoint, "Endpoint path for HTTP transport")
 	fs.BoolVar(&cfg.Stateless, "stateless", cfg.Stateless, "Run in stateless mode (no session tracking)")
 
+	//nolint:forbidigo // main must parse CLI arguments from os.Args.
 	if err := fs.Parse(os.Args[1:]); err != nil {
 		//nolint:forbidigo // main must exit with the server status code.
 		os.Exit(1)
