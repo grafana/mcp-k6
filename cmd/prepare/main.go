@@ -172,7 +172,7 @@ func cloneRepository(repoURL, targetDir string) error {
 	ctx, cancel := context.WithTimeout(context.Background(), gitCommandTimeout)
 	defer cancel()
 
-	cmd := exec.CommandContext(ctx, "git", "clone", "--depth", "1", repoURL, targetDir)
+	cmd := exec.CommandContext(ctx, "git", "clone", "--depth", "1", repoURL, targetDir) // #nosec G204
 	cmd.Stdout = os.Stdout
 	cmd.Stderr = os.Stderr
 	if err := cmd.Run(); err != nil {
@@ -253,7 +253,9 @@ func cloneTypesRepository(repoURL, repoDir string) error {
 	ctx, cancel := context.WithTimeout(context.Background(), gitCommandTimeout)
 	defer cancel()
 
-	cmd := exec.CommandContext(ctx, "git", "clone", "--filter=blob:none", "--sparse", "--depth=1", repoURL, repoDir)
+	cmd := exec.CommandContext( // #nosec G204
+		ctx, "git", "clone", "--filter=blob:none", "--sparse", "--depth=1", repoURL, repoDir,
+	)
 	var cloneStderr bytes.Buffer
 	cmd.Stderr = &cloneStderr
 	err := cmd.Run()
@@ -261,7 +263,9 @@ func cloneTypesRepository(repoURL, repoDir string) error {
 		return fmt.Errorf("failed to clone types repository; reason: %s", cloneStderr.String())
 	}
 
-	cmd = exec.CommandContext(ctx, "git", "-C", repoDir, "sparse-checkout", "set", "types/k6")
+	cmd = exec.CommandContext( // #nosec G204
+		ctx, "git", "-C", repoDir, "sparse-checkout", "set", "types/k6",
+	)
 	var sparseStderr bytes.Buffer
 	cmd.Stderr = &sparseStderr
 	err = cmd.Run()
@@ -296,7 +300,7 @@ func cleanUpTypesRepository(repoDir string) error {
 			return nil
 		}
 		if !strings.HasSuffix(d.Name(), internal.DistDTSFileSuffix) {
-			if err := os.Remove(path); err != nil {
+			if err := os.Remove(path); err != nil { // #nosec G122
 				return fmt.Errorf("failed to remove file %s: %w", path, err)
 			}
 		}
