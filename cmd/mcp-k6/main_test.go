@@ -12,6 +12,8 @@ import (
 
 	"github.com/mark3labs/mcp-go/server"
 	"github.com/stretchr/testify/assert"
+
+	"github.com/grafana/mcp-k6/mcpserver"
 )
 
 func TestRunFailsWhenK6Missing(t *testing.T) {
@@ -20,7 +22,7 @@ func TestRunFailsWhenK6Missing(t *testing.T) {
 	logger := newTestLogger()
 	var stderr bytes.Buffer
 
-	code := run(context.Background(), logger, &stderr, nil)
+	code := mcpserver.Run(context.Background(), logger, &stderr, mcpserver.DefaultConfig())
 	assert.NotEqual(t, 0, code, "run should return non-zero exit code when k6 is missing")
 	assert.Contains(t, stderr.String(), "mcp-k6 requires the `k6` executable")
 }
@@ -34,18 +36,16 @@ func TestRunSucceedsWithStubbedK6(t *testing.T) {
 		t.Setenv("PATHEXT", ".COM;.EXE;.BAT;.CMD")
 	}
 
-	originalServe := serveStdio
-	serveStdio = func(*server.MCPServer, ...server.StdioOption) error {
+	stubServe := func(*server.MCPServer, ...server.StdioOption) error {
 		return nil
 	}
-	t.Cleanup(func() {
-		serveStdio = originalServe
-	})
 
 	logger := newTestLogger()
 	var stderr bytes.Buffer
 
-	code := run(context.Background(), logger, &stderr, nil)
+	code := mcpserver.Run(context.Background(), logger, &stderr, mcpserver.DefaultConfig(),
+		mcpserver.WithServeStdio(stubServe),
+	)
 	assert.Equal(t, 0, code, "run should succeed when k6 is available")
 }
 

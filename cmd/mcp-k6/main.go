@@ -3,180 +3,32 @@ package main
 
 import (
 	"context"
-	"errors"
 	"flag"
-	"fmt"
-	"io"
-	"log/slog"
 	"os"
 
-	"github.com/mark3labs/mcp-go/server"
-
-	k6mcp "github.com/grafana/mcp-k6"
-	"github.com/grafana/mcp-k6/internal/buildinfo"
-	"github.com/grafana/mcp-k6/internal/k6env"
 	"github.com/grafana/mcp-k6/internal/logging"
-	"github.com/grafana/mcp-k6/internal/sections"
-	"github.com/grafana/mcp-k6/prompts"
-	"github.com/grafana/mcp-k6/resources"
-	"github.com/grafana/mcp-k6/tools"
+	"github.com/grafana/mcp-k6/mcpserver"
 )
-
-// Server instructions are a good opportunity to give the agent a high-level overview of the tools
-// and resources that will be made available. However, it should be kept as brief as possible, as
-// to not waste conversation tokens.
-const instructions = `
-Use the provided tools for running or validating k6 scripts, for browsing the k6 OSS docs, or
-for searching for k6 Cloud-related Terraform resources in the Grafana Terraform provider.
-Use the provided resources for understanding the k6 script authoring best practices and for consulting
-type definitions.
-List the resources at least once before trying to access one of them.
-Use the provided prompts as a good starting point for authoring complex k6 scripts.
-`
-
-//nolint:gochecknoglobals // Allows test override for stdio server.
-var serveStdio = server.ServeStdio
 
 func main() {
 	logger := logging.Default()
-	//nolint:forbidigo // main must exit with the server status code.
-	os.Exit(run(context.Background(), logger, os.Stderr, os.Args[1:]))
-}
 
-func run(ctx context.Context, logger *slog.Logger, stderr io.Writer, args []string) int {
+	cfg := mcpserver.DefaultConfig()
+
 	fs := flag.NewFlagSet("mcp-k6", flag.ContinueOnError)
-	fs.SetOutput(stderr)
+	//nolint:forbidigo // main must write to stderr.
+	fs.SetOutput(os.Stderr)
 
-	var (
-		transport = fs.String("transport", "stdio", "Transport mode: stdio or http")
-		addr      = fs.String("addr", ":8080", "HTTP address to listen on")
-		endpoint  = fs.String("endpoint", "/mcp", "Endpoint path for HTTP transport")
-		stateless = fs.Bool("stateless", false, "Run in stateless mode (no session tracking)")
-	)
+	fs.StringVar(&cfg.Transport, "transport", cfg.Transport, "Transport mode: stdio or http")
+	fs.StringVar(&cfg.Addr, "addr", cfg.Addr, "HTTP address to listen on")
+	fs.StringVar(&cfg.Endpoint, "endpoint", cfg.Endpoint, "Endpoint path for HTTP transport")
+	fs.BoolVar(&cfg.Stateless, "stateless", cfg.Stateless, "Run in stateless mode (no session tracking)")
 
-	if err := fs.Parse(args); err != nil {
-		return 1
+	if err := fs.Parse(os.Args[1:]); err != nil {
+		//nolint:forbidigo // main must exit with the server status code.
+		os.Exit(1)
 	}
 
-	logger.Info("Starting k6 MCP server",
-		slog.String("version", buildinfo.Version),
-		slog.String("commit", buildinfo.Commit),
-		slog.String("built_at", buildinfo.Date),
-		slog.Bool("resource_capabilities", true),
-	)
-
-	k6Info, err := k6env.Locate(ctx)
-	if err != nil {
-		return handleK6LookupError(logger, stderr, err)
-	}
-
-	logger.Info("Detected k6 executable", slog.String("path", k6Info.Path))
-
-	finder, err := loadSectionsIndex(logger)
-	if err != nil {
-		logger.Error("Failed to load sections index", slog.String("error", err.Error()))
-		return 1
-	}
-
-	// Create and wire up the MCP server instance.
-	s := createServer(finder)
-
-	if *transport == "http" {
-		httpOpts := []server.StreamableHTTPOption{
-			server.WithEndpointPath(*endpoint),
-		}
-
-		if *stateless {
-			httpOpts = append(httpOpts, server.WithStateLess(true))
-		}
-
-		httpServer := server.NewStreamableHTTPServer(s, httpOpts...)
-
-		logger.Info("Starting MCP server with Streamable HTTP",
-			slog.String("addr", *addr),
-			slog.String("endpoint", *endpoint),
-			slog.Bool("stateless", *stateless),
-		)
-
-		if err := httpServer.Start(*addr); err != nil {
-			logger.Error("Server error", slog.String("error", err.Error()))
-			_, _ = fmt.Fprintf(stderr, "MCP server exited with error: %v\n", err)
-			return 1
-		}
-		return 0
-	}
-
-	logger.Info("Starting MCP server on stdio")
-	if err := serveStdio(s); err != nil {
-		logger.Error("Server error", slog.String("error", err.Error()))
-		_, _ = fmt.Fprintf(stderr, "MCP server exited with error: %v\n", err)
-		return 1
-	}
-
-	return 0
-}
-
-func createServer(finder *sections.Finder) *server.MCPServer {
-	s := server.NewMCPServer(
-		"k6",
-		buildinfo.Version,
-		server.WithResourceCapabilities(true, true),
-		server.WithLogging(),
-		server.WithRecovery(),
-		server.WithInstructions(instructions),
-	)
-
-	// Register tools
-	tools.RegisterInfoTool(s)
-	tools.RegisterValidateTool(s)
-	tools.RegisterRunTool(s)
-	tools.RegisterSearchTerraformTool(s)
-	tools.RegisterListSectionsTool(s, finder)
-	tools.RegisterGetDocumentationTool(s, finder)
-
-	// Register resources
-	resources.RegisterBestPracticesResource(s)
-	resources.RegisterTypeDefinitionsResources(s)
-
-	// Register prompts
-	prompts.RegisterGenerateScriptPrompt(s)
-	prompts.RegisterConvertPlaywrightScriptPrompt(s)
-
-	return s
-}
-
-func loadSectionsIndex(logger *slog.Logger) (*sections.Finder, error) {
-	// Load sections index
-	logger.Info("Loading sections index")
-	sectionsIdx, err := sections.LoadJSON(k6mcp.SectionsIndex)
-	if err != nil {
-		return nil, fmt.Errorf("failed to load sections index: %w", err)
-	}
-	finder := sections.NewFinder(sectionsIdx)
-
-	totalSections := 0
-	for _, secs := range sectionsIdx.Sections {
-		totalSections += len(secs)
-	}
-	logger.Info("Loaded sections index",
-		slog.Int("version_count", len(sectionsIdx.Versions)),
-		slog.Int("total_sections", totalSections),
-		slog.String("latest_version", sectionsIdx.Latest))
-
-	return finder, nil
-}
-
-func handleK6LookupError(logger *slog.Logger, stderr io.Writer, err error) int {
-	if errors.Is(err, k6env.ErrNotFound) {
-		message := "mcp-k6 requires the `k6` executable on your PATH. Install k6 " +
-			"(https://grafana.com/docs/k6/latest/get-started/installation/) " +
-			"and ensure it is accessible before retrying."
-		logger.Error("k6 executable not found on PATH", slog.String("hint", message))
-		_, _ = fmt.Fprintln(stderr, message)
-	} else {
-		logger.Error("Failed to locate k6 executable", slog.String("error", err.Error()))
-		_, _ = fmt.Fprintf(stderr, "Failed to locate k6 executable: %v\n", err)
-	}
-
-	return 1
+	//nolint:forbidigo // main must exit with the server status code.
+	os.Exit(mcpserver.Run(context.Background(), logger, os.Stderr, cfg))
 }
