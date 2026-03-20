@@ -24,7 +24,7 @@ If those tools are **not** available, follow the workflow below directly using t
 
 Apply the following best practices:
 
-@resources/best_practices.md
+@best_practices.md
 
 ---
 
