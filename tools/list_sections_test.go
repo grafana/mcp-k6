@@ -5,15 +5,17 @@ import (
 	"encoding/json"
 	"testing"
 
-	"github.com/grafana/mcp-k6/internal/sections"
+	k6docslib "github.com/grafana/k6-docs-lib"
+	"github.com/grafana/mcp-k6/internal/docs"
 	"github.com/mark3labs/mcp-go/mcp"
 	"github.com/stretchr/testify/require"
+	"go.k6.io/k6/lib/fsext"
 )
 
 func TestListSectionsHandlerReturnsTopLevelTree(t *testing.T) {
 	t.Parallel()
 
-	handler := newListSectionsHandlerFunc(newTestFinder(t, sampleSections()))
+	handler := newListSectionsHandlerFunc(newTestProvider(t, sampleSections()))
 
 	result, err := handler(context.Background(), newCallRequest(nil))
 	require.NoError(t, err)
@@ -33,7 +35,7 @@ func TestListSectionsHandlerReturnsTopLevelTree(t *testing.T) {
 func TestListSectionsHandlerDepthAndRoot(t *testing.T) {
 	t.Parallel()
 
-	handler := newListSectionsHandlerFunc(newTestFinder(t, sampleSections()))
+	handler := newListSectionsHandlerFunc(newTestProvider(t, sampleSections()))
 
 	args := map[string]any{
 		"root_slug": "using-k6",
@@ -54,14 +56,13 @@ func TestListSectionsHandlerDepthAndRoot(t *testing.T) {
 	require.False(t, child.Children[0].HasMore)
 }
 
-func sampleSections() []sections.Section {
-	return []sections.Section{
+func sampleSections() []k6docslib.Section {
+	return []k6docslib.Section{
 		{
 			Slug:        "using-k6",
 			RelPath:     "using-k6/_index.md",
 			Title:       "Using k6",
 			Category:    "using-k6",
-			Hierarchy:   []string{"using-k6"},
 			IsIndex:     true,
 			Weight:      0,
 			Description: "Overview of using k6",
@@ -71,7 +72,6 @@ func sampleSections() []sections.Section {
 			RelPath:     "using-k6/get-started.md",
 			Title:       "Get Started",
 			Category:    "using-k6",
-			Hierarchy:   []string{"using-k6"},
 			Weight:      10,
 			Description: "Intro guide",
 		},
@@ -80,7 +80,6 @@ func sampleSections() []sections.Section {
 			RelPath:     "using-k6/get-started/install.md",
 			Title:       "Install",
 			Category:    "using-k6",
-			Hierarchy:   []string{"using-k6", "get-started"},
 			Weight:      20,
 			Description: "Install guide",
 		},
@@ -89,39 +88,25 @@ func sampleSections() []sections.Section {
 			RelPath:     "javascript-api/_index.md",
 			Title:       "JavaScript API",
 			Category:    "javascript-api",
-			Hierarchy:   []string{"javascript-api"},
 			Weight:      5,
 			Description: "API ref",
 		},
 	}
 }
 
-func newTestFinder(t *testing.T, sectionData []sections.Section) *sections.Finder {
+func newTestProvider(t *testing.T, sectionData []k6docslib.Section) *docs.Provider {
 	t.Helper()
 
-	sectionsCopy := append([]sections.Section(nil), sectionData...)
-
-	index := &sections.SectionIndex{
-		Versions: []string{"vtest"},
-		Latest:   "vtest",
-		Sections: map[string][]sections.Section{
-			"vtest": sectionsCopy,
-		},
-		BySlug: map[string]map[string]*sections.Section{
-			"vtest": {},
-		},
-		ByPath: map[string]map[string]*sections.Section{
-			"vtest": {},
-		},
+	idx := &k6docslib.Index{
+		Version:  "vtest",
+		Sections: append([]k6docslib.Section(nil), sectionData...),
 	}
 
-	for i := range sectionsCopy {
-		section := &sectionsCopy[i]
-		index.BySlug["vtest"][section.Slug] = section
-		index.ByPath["vtest"][section.RelPath] = section
-	}
+	mi := k6docslib.NewMultiIndex()
+	mi.Add("vtest", idx)
+	mi.SetLatest("vtest")
 
-	return sections.NewFinder(index)
+	return docs.NewFromMultiIndex(mi, t.TempDir(), fsext.NewMemMapFs())
 }
 
 func newCallRequest(args map[string]any) mcp.CallToolRequest {

@@ -11,10 +11,9 @@ import (
 
 	"github.com/mark3labs/mcp-go/server"
 
-	k6mcp "github.com/grafana/mcp-k6"
 	"github.com/grafana/mcp-k6/internal/buildinfo"
+	"github.com/grafana/mcp-k6/internal/docs"
 	"github.com/grafana/mcp-k6/internal/k6env"
-	"github.com/grafana/mcp-k6/internal/sections"
 	"github.com/grafana/mcp-k6/prompts"
 	"github.com/grafana/mcp-k6/resources"
 	"github.com/grafana/mcp-k6/tools"
@@ -58,8 +57,17 @@ func WithServeStdio(fn func(*server.MCPServer, ...server.StdioOption) error) Opt
 	}
 }
 
+// WithDocsProvider injects a pre-built docs provider, skipping runtime
+// version detection and documentation download. Primarily useful for testing.
+func WithDocsProvider(p *docs.Provider) Option {
+	return func(r *runner) {
+		r.docsProvider = p
+	}
+}
+
 type runner struct {
-	serveStdio func(*server.MCPServer, ...server.StdioOption) error
+	serveStdio   func(*server.MCPServer, ...server.StdioOption) error
+	docsProvider *docs.Provider
 }
 
 // Run starts the MCP server with the given configuration. It blocks until the
@@ -104,13 +112,24 @@ func Run(ctx context.Context, logger *slog.Logger, stderr io.Writer, cfg Config,
 
 	logger.Info("Detected k6 executable", slog.String("path", k6Info.Path))
 
-	finder, err := loadSectionsIndex(logger)
-	if err != nil {
-		logger.Error("Failed to load sections index", slog.String("error", err.Error()))
-		return 1
+	provider := r.docsProvider
+	if provider == nil {
+		k6Version, vErr := k6Info.Version(ctx)
+		if vErr != nil {
+			logger.Error("Failed to get k6 version", slog.String("error", vErr.Error()))
+			_, _ = fmt.Fprintf(stderr, "Failed to get k6 version: %v\n", vErr)
+			return 1
+		}
+
+		provider, err = docs.New(ctx, logger, k6Version)
+		if err != nil {
+			logger.Error("Failed to load documentation", slog.String("error", err.Error()))
+			_, _ = fmt.Fprintf(stderr, "Failed to load documentation: %v\n", err)
+			return 1
+		}
 	}
 
-	s := createServer(finder)
+	s := createServer(provider)
 
 	if cfg.Transport == "http" {
 		return r.serveHTTP(logger, stderr, s, cfg)
@@ -151,7 +170,7 @@ func (r *runner) serveHTTP(logger *slog.Logger, stderr io.Writer, s *server.MCPS
 	return 0
 }
 
-func createServer(finder *sections.Finder) *server.MCPServer {
+func createServer(provider *docs.Provider) *server.MCPServer {
 	s := server.NewMCPServer(
 		"k6",
 		buildinfo.Version,
@@ -165,8 +184,8 @@ func createServer(finder *sections.Finder) *server.MCPServer {
 	tools.RegisterValidateTool(s)
 	tools.RegisterRunTool(s)
 	tools.RegisterSearchTerraformTool(s)
-	tools.RegisterListSectionsTool(s, finder)
-	tools.RegisterGetDocumentationTool(s, finder)
+	tools.RegisterListSectionsTool(s, provider)
+	tools.RegisterGetDocumentationTool(s, provider)
 
 	resources.RegisterBestPracticesResource(s)
 	resources.RegisterTypeDefinitionsResources(s)
@@ -175,26 +194,6 @@ func createServer(finder *sections.Finder) *server.MCPServer {
 	prompts.RegisterConvertPlaywrightScriptPrompt(s)
 
 	return s
-}
-
-func loadSectionsIndex(logger *slog.Logger) (*sections.Finder, error) {
-	logger.Info("Loading sections index")
-	sectionsIdx, err := sections.LoadJSON(k6mcp.SectionsIndex)
-	if err != nil {
-		return nil, fmt.Errorf("failed to load sections index: %w", err)
-	}
-	finder := sections.NewFinder(sectionsIdx)
-
-	totalSections := 0
-	for _, secs := range sectionsIdx.Sections {
-		totalSections += len(secs)
-	}
-	logger.Info("Loaded sections index",
-		slog.Int("version_count", len(sectionsIdx.Versions)),
-		slog.Int("total_sections", totalSections),
-		slog.String("latest_version", sectionsIdx.Latest))
-
-	return finder, nil
 }
 
 func handleK6LookupError(logger *slog.Logger, stderr io.Writer, err error) int {

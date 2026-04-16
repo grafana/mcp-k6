@@ -82,6 +82,9 @@ linters:
     goconst:
       min-len: 10
       min-occurrences: 4
+    gomoddirectives:
+      replace-allow-list:
+        - github.com/grafana/k6-docs-lib
     usetesting:
       os-setenv: true
   exclusions:

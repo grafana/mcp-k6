@@ -4,11 +4,10 @@ import (
 	"context"
 	"fmt"
 	"log/slog"
-	"path/filepath"
 
-	k6mcp "github.com/grafana/mcp-k6"
+	k6docslib "github.com/grafana/k6-docs-lib"
+	"github.com/grafana/mcp-k6/internal/docs"
 	"github.com/grafana/mcp-k6/internal/logging"
-	"github.com/grafana/mcp-k6/internal/sections"
 	"github.com/mark3labs/mcp-go/mcp"
 	"github.com/mark3labs/mcp-go/server"
 )
@@ -36,8 +35,9 @@ var GetDocumentationTool = mcp.NewTool(
 	mcp.WithString(
 		"version",
 		mcp.Description(
-			"Optional: k6 version (e.g., 'v1.4.x', 'v0.57.x'). Defaults to latest. "+
-				"Use list_sections with version='all' to see available versions.",
+			"Optional: documentation version to read from. Defaults to the version matching "+
+				"the installed k6 binary. Use list_sections with version='all' to inspect "+
+				"the version currently available on this server.",
 		),
 	),
 )
@@ -50,21 +50,21 @@ type getDocParams struct {
 
 // getDocResponse is the JSON structure returned by the tool.
 type getDocResponse struct {
-	Section           sections.Section `json:"section"`
-	Content           string           `json:"content"`
-	Version           string           `json:"version"`
-	AvailableVersions []string         `json:"available_versions"`
+	Section           k6docslib.Section `json:"section"`
+	Content           string            `json:"content"`
+	Version           string            `json:"version"`
+	AvailableVersions []string          `json:"available_versions"`
 }
 
 // RegisterGetDocumentationTool registers the get documentation tool with the MCP server.
-func RegisterGetDocumentationTool(s *server.MCPServer, finder *sections.Finder) {
-	handler := newGetDocumentationHandlerFunc(finder)
+func RegisterGetDocumentationTool(s *server.MCPServer, provider *docs.Provider) {
+	handler := newGetDocumentationHandlerFunc(provider)
 	s.AddTool(GetDocumentationTool, withToolLogger("get_documentation", handler))
 }
 
-// newGetDocumentationHandlerFunc returns an MCP tool handler bound to a finder.
+// newGetDocumentationHandlerFunc returns an MCP tool handler bound to a provider.
 func newGetDocumentationHandlerFunc(
-	finder *sections.Finder,
+	provider *docs.Provider,
 ) func(ctx context.Context, request mcp.CallToolRequest) (*mcp.CallToolResult, error) {
 	return func(ctx context.Context, request mcp.CallToolRequest) (*mcp.CallToolResult, error) {
 		logger := logging.LoggerFromContext(ctx)
@@ -80,14 +80,20 @@ func newGetDocumentationHandlerFunc(
 			slog.String("slug", params.Slug),
 			slog.String("version", params.Version))
 
-		version, _ := resolveVersion(finder, params.Version)
+		version, err := resolveVersion(provider, params.Version)
+		if err != nil {
+			logger.WarnContext(ctx, "Version not found",
+				slog.String("version", params.Version),
+				slog.Any("available_versions", provider.GetVersions()))
+			return mcp.NewToolResultError(err.Error()), nil
+		}
 
-		section, err := lookupSection(ctx, logger, finder, params.Slug, version)
+		section, err := lookupSection(ctx, logger, provider, params.Slug, version)
 		if err != nil {
 			return mcp.NewToolResultError(err.Error()), nil
 		}
 
-		content, err := readMarkdownContent(ctx, logger, section, version)
+		content, err := readMarkdownContent(ctx, logger, provider, section, version)
 		if err != nil {
 			return mcp.NewToolResultError(err.Error()), nil
 		}
@@ -102,7 +108,7 @@ func newGetDocumentationHandlerFunc(
 			Section:           *section,
 			Content:           string(content),
 			Version:           version,
-			AvailableVersions: finder.GetVersions(),
+			AvailableVersions: provider.GetVersions(),
 		}
 
 		return marshalResponse(ctx, logger, resp)
@@ -124,19 +130,18 @@ func parseGetDocParams(request mcp.CallToolRequest) (*getDocParams, error) {
 func lookupSection(
 	ctx context.Context,
 	logger *slog.Logger,
-	finder *sections.Finder,
+	provider *docs.Provider,
 	slug, version string,
-) (*sections.Section, error) {
+) (*k6docslib.Section, error) {
 	logger.DebugContext(ctx, "Looking up section",
 		slog.String("slug", slug),
 		slog.String("version", version))
 
-	section, err := finder.GetBySlug(slug, version)
-	if err != nil {
+	section, ok := provider.Lookup(slug, version)
+	if !ok {
 		logger.WarnContext(ctx, "Section not found",
 			slog.String("slug", slug),
-			slog.String("version", version),
-			slog.String("error", err.Error()))
+			slog.String("version", version))
 
 		return nil, fmt.Errorf(
 			"section not found: %s in version %s. Use list_sections tool to find valid slugs",
@@ -150,25 +155,31 @@ func lookupSection(
 func readMarkdownContent(
 	ctx context.Context,
 	logger *slog.Logger,
-	section *sections.Section,
+	provider *docs.Provider,
+	section *k6docslib.Section,
 	version string,
 ) ([]byte, error) {
-	markdownPath := filepath.Join("dist/markdown", version, section.RelPath)
-
 	logger.DebugContext(ctx, "Reading markdown file",
-		slog.String("path", markdownPath))
+		slog.String("slug", section.Slug),
+		slog.String("rel_path", section.RelPath))
 
-	content, err := k6mcp.MarkdownFiles.ReadFile(markdownPath)
+	content, err := provider.ReadContent(section, version)
 	if err != nil {
 		logger.ErrorContext(ctx, "Failed to read markdown file",
-			slog.String("path", markdownPath),
 			slog.String("slug", section.Slug),
 			slog.String("version", version),
 			slog.String("error", err.Error()))
 
+		if docs.IsInvalidRelPath(err) {
+			return nil, fmt.Errorf(
+				"documentation metadata for %s (version %s) contains an invalid content path",
+				section.Slug, version,
+			)
+		}
+
 		return nil, fmt.Errorf(
 			"failed to read documentation content for %s (version %s). "+
-				"This may indicate a build issue. Please report this error",
+				"This may indicate a cache issue. Please report this error",
 			section.Slug, version,
 		)
 	}

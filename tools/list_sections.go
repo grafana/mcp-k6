@@ -7,8 +7,9 @@ import (
 	"log/slog"
 	"slices"
 
+	k6docslib "github.com/grafana/k6-docs-lib"
+	"github.com/grafana/mcp-k6/internal/docs"
 	"github.com/grafana/mcp-k6/internal/logging"
-	"github.com/grafana/mcp-k6/internal/sections"
 	"github.com/mark3labs/mcp-go/mcp"
 	"github.com/mark3labs/mcp-go/server"
 )
@@ -28,8 +29,9 @@ var ListSectionsTool = mcp.NewTool(
 	mcp.WithString(
 		"version",
 		mcp.Description(
-			"Optional: k6 version to list sections for (e.g., 'v1.4.x', 'v0.57.x'). "+
-				"Defaults to latest version. Use 'all' to see available versions.",
+			"Optional: documentation version to list sections for. "+
+				"Defaults to the version matching the installed k6 binary. "+
+				"Use 'all' to inspect the version currently available on this server.",
 		),
 	),
 	mcp.WithString(
@@ -70,15 +72,15 @@ type listSectionsParams struct {
 
 // listSectionsResponse is the JSON structure returned by the tool.
 type listSectionsResponse struct {
-	Tree              []*sections.SectionDTO `json:"tree"`
-	Count             int                    `json:"count"`
-	Total             int                    `json:"total"`
-	Version           string                 `json:"version"`
-	AvailableVersions []string               `json:"available_versions"`
-	FilteredBy        *filterInfo            `json:"filtered_by,omitempty"`
-	Depth             int                    `json:"depth"`
-	Usage             string                 `json:"usage"`
-	RootSlug          string                 `json:"root_slug,omitempty"`
+	Tree              []*k6docslib.SectionDTO `json:"tree"`
+	Count             int                     `json:"count"`
+	Total             int                     `json:"total"`
+	Version           string                  `json:"version"`
+	AvailableVersions []string                `json:"available_versions"`
+	FilteredBy        *filterInfo             `json:"filtered_by,omitempty"`
+	Depth             int                     `json:"depth"`
+	Usage             string                  `json:"usage"`
+	RootSlug          string                  `json:"root_slug,omitempty"`
 }
 
 type filterInfo struct {
@@ -93,14 +95,14 @@ type versionsResponse struct {
 }
 
 // RegisterListSectionsTool registers the list sections tool with the MCP server.
-func RegisterListSectionsTool(s *server.MCPServer, finder *sections.Finder) {
-	handler := newListSectionsHandlerFunc(finder)
+func RegisterListSectionsTool(s *server.MCPServer, provider *docs.Provider) {
+	handler := newListSectionsHandlerFunc(provider)
 	s.AddTool(ListSectionsTool, withToolLogger("list_sections", handler))
 }
 
-// newListSectionsHandlerFunc returns an MCP tool handler bound to a finder.
+// newListSectionsHandlerFunc returns an MCP tool handler bound to a provider.
 func newListSectionsHandlerFunc(
-	finder *sections.Finder,
+	provider *docs.Provider,
 ) func(ctx context.Context, request mcp.CallToolRequest) (*mcp.CallToolResult, error) {
 	return func(ctx context.Context, request mcp.CallToolRequest) (*mcp.CallToolResult, error) {
 		logger := logging.LoggerFromContext(ctx)
@@ -110,23 +112,20 @@ func newListSectionsHandlerFunc(
 		logParams(ctx, logger, params)
 
 		if params.Version == "all" {
-			return handleVersionsRequest(ctx, logger, finder)
+			return handleVersionsRequest(ctx, logger, provider)
 		}
 
-		version, err := resolveVersion(finder, params.Version)
+		version, err := resolveVersion(provider, params.Version)
 		if err != nil {
 			logger.WarnContext(ctx, "Version not found",
 				slog.String("version", params.Version),
-				slog.Any("available_versions", finder.GetVersions()))
+				slog.Any("available_versions", provider.GetVersions()))
 			return mcp.NewToolResultError(err.Error()), nil
 		}
 
-		sectionList, totalCount, err := fetchSections(ctx, logger, finder, params, version)
-		if err != nil {
-			return mcp.NewToolResultError(err.Error()), nil
-		}
+		sectionList, totalCount := fetchSections(ctx, logger, provider, params, version)
 
-		resp, err := buildListSectionsResponse(ctx, logger, finder, params, version, sectionList, totalCount)
+		resp, err := buildListSectionsResponse(ctx, logger, provider, params, version, sectionList, totalCount)
 		if err != nil {
 			return mcp.NewToolResultError(err.Error()), nil
 		}
@@ -169,10 +168,10 @@ func logParams(ctx context.Context, logger *slog.Logger, params listSectionsPara
 func handleVersionsRequest(
 	ctx context.Context,
 	logger *slog.Logger,
-	finder *sections.Finder,
+	provider *docs.Provider,
 ) (*mcp.CallToolResult, error) {
-	versions := finder.GetVersions()
-	latest := finder.GetLatestVersion()
+	versions := provider.GetVersions()
+	latest := provider.GetLatestVersion()
 
 	logger.InfoContext(ctx, "Listing all versions",
 		slog.Int("version_count", len(versions)),
@@ -181,70 +180,60 @@ func handleVersionsRequest(
 	resp := versionsResponse{
 		Versions: versions,
 		Latest:   latest,
-		Message:  "Available k6 documentation versions. Use version parameter to filter sections.",
+		Message:  "Available k6 documentation versions for this server. The default matches the installed k6 binary.",
 	}
 
 	return marshalResponse(ctx, logger, resp)
 }
 
-func resolveVersion(finder *sections.Finder, version string) (string, error) {
+func resolveVersion(provider *docs.Provider, version string) (string, error) {
 	if version == "" {
-		return finder.GetLatestVersion(), nil
+		return provider.GetLatestVersion(), nil
 	}
 
-	if slices.Contains(finder.GetVersions(), version) {
+	if slices.Contains(provider.GetVersions(), version) {
 		return version, nil
 	}
 
-	return "", fmt.Errorf("version not found: %s. Use version='all' to see available versions", version)
+	return "", fmt.Errorf(
+		"version not found: %s. Use version='all' to see the documentation version available for the installed k6 binary",
+		version,
+	)
 }
 
 func fetchSections(
 	ctx context.Context,
 	logger *slog.Logger,
-	finder *sections.Finder,
+	provider *docs.Provider,
 	params listSectionsParams,
 	version string,
-) ([]sections.Section, int, error) {
+) ([]k6docslib.Section, int) {
 	if params.Category != "" {
 		logger.DebugContext(ctx, "Filtering by category",
 			slog.String("category", params.Category),
 			slog.String("version", version))
 
-		list, err := finder.GetByCategory(params.Category, version)
-		if err != nil {
-			logger.ErrorContext(ctx, "Category filter failed",
-				slog.String("category", params.Category),
-				slog.String("version", version),
-				slog.String("error", err.Error()))
-			return nil, 0, fmt.Errorf("category filter failed: %w", err)
-		}
-		return list, len(list), nil
+		list := provider.GetByCategory(params.Category, version)
+		return list, len(list)
 	}
 
 	logger.DebugContext(ctx, "Listing all sections",
 		slog.String("version", version))
 
-	list, err := finder.GetAll(version)
-	if err != nil {
-		logger.ErrorContext(ctx, "Failed to get sections",
-			slog.String("version", version),
-			slog.String("error", err.Error()))
-		return nil, 0, fmt.Errorf("failed to get sections: %w", err)
-	}
-	return list, len(list), nil
+	list := provider.GetAll(version)
+	return list, len(list)
 }
 
 func buildListSectionsResponse(
 	ctx context.Context,
 	logger *slog.Logger,
-	finder *sections.Finder,
+	provider *docs.Provider,
 	params listSectionsParams,
 	version string,
-	sectionList []sections.Section,
+	sectionList []k6docslib.Section,
 	totalCount int,
 ) (*listSectionsResponse, error) {
-	treeNodes, err := sections.BuildSectionTree(sectionList, params.RootSlug, params.Depth)
+	treeNodes, err := k6docslib.BuildSectionTree(sectionList, params.RootSlug, params.Depth)
 	if err != nil {
 		logger.WarnContext(ctx, "Failed to build section tree",
 			slog.String("root_slug", params.RootSlug),
@@ -254,11 +243,11 @@ func buildListSectionsResponse(
 	}
 
 	resp := &listSectionsResponse{
-		Tree:              sections.NodesToDTO(treeNodes),
+		Tree:              k6docslib.NodesToDTO(treeNodes),
 		Count:             len(treeNodes),
 		Total:             totalCount,
 		Version:           version,
-		AvailableVersions: finder.GetVersions(),
+		AvailableVersions: provider.GetVersions(),
 		Depth:             params.Depth,
 	}
 
