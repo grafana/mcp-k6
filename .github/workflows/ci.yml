@@ -44,7 +44,9 @@ jobs:
       - name: Setup Go
         uses: actions/setup-go@7a3fe6cf4cb3a834922a1244abfce67bcef6a0c5 # v6
         with:
-          go-version-file: 'go.mod'
+          # xk6 resolves the pinned E2E dependency go.k6.io/k6@v1.7.0,
+          # which requires Go 1.25+.
+          go-version: '1.25.0'
           cache: false
 
       - name: Test
@@ -62,7 +64,9 @@ jobs:
       - name: Setup Go
         uses: actions/setup-go@7a3fe6cf4cb3a834922a1244abfce67bcef6a0c5 # v6
         with:
-          go-version-file: 'go.mod'
+          # xk6 resolves the pinned E2E dependency go.k6.io/k6@v1.7.0,
+          # which requires Go 1.25+.
+          go-version: '1.25.0'
           cache: false
 
       - name: Install k6
