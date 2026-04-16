@@ -15,22 +15,18 @@ LDFLAGS := -s -w -X github.com/grafana/mcp-k6/internal/buildinfo.Version=$(VERSI
 
 CMD_PACKAGES := $(shell go list ./cmd/...)
 
-.PHONY: run install install-only build build-only release prepare clean types ensure-embed help list test test-unit tests test-all test-e2e test-e2e-setup
+.PHONY: run install build release clean help list test test-unit tests test-all test-e2e test-e2e-setup
 
-run: prepare ## Run the mcp-k6 server
+run: ## Run the mcp-k6 server
 	@go run ./cmd/mcp-k6
 
-install: prepare install-only ## Install the mcp-k6 server (VERSION=dev)
-
-install-only: ## Install the mcp-k6 server without preparing assets first (VERSION=dev)
+install: ## Install the mcp-k6 server (VERSION=dev)
 	@go install -ldflags "$(LDFLAGS)" ./cmd/mcp-k6
 
-build: prepare build-only ## Build the mcp-k6 server (VERSION=dev)
-
-build-only: ## Build the mcp-k6 server without preparing assets first (VERSION=dev)
+build: ## Build the mcp-k6 server (VERSION=dev)
 	@go build -ldflags "$(LDFLAGS)" -o mcp-k6 ./cmd/mcp-k6
 
-test: prepare ## Run Go unit tests
+test: ## Run Go unit tests
 	@go test ./...
 
 tests: test ## Alias for test
@@ -39,10 +35,10 @@ test-unit: test ## Alias for test
 
 test-all: test test-e2e ## Run all tests (unit + e2e)
 
-vet: prepare ## Run the vet command
+vet: ## Run the vet command
 	@go vet ./...
 
-reviewable: prepare test-all vet ## Run the reviewable command
+reviewable: test-all vet ## Run the reviewable command
 	@gofmt -l .
 	@golangci-lint run
 	@gosec -quiet ./...
@@ -51,17 +47,8 @@ reviewable: prepare test-all vet ## Run the reviewable command
 release:
 	@goreleaser build --snapshot --clean
 
-prepare: ensure-embed ## Prepare TypeScript type definitions for embedding
-	@go run ./cmd/prepare
-
 clean: ## Clean generated artifacts
-	@rm -rf dist release k6-mcp prepare e2e/k6
-
-types: ensure-embed ## Collect TypeScript type definitions into dist/
-	@go run ./cmd/prepare
-
-ensure-embed: ## Ensure placeholder embed assets exist before prepare
-	@mkdir -p dist
+	@rm -rf dist release k6-mcp e2e/k6
 
 help: ## List available targets
 	@echo "Available targets:"

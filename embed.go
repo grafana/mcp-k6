@@ -5,11 +5,6 @@ import (
 	"embed"
 )
 
-// TypeDefinitions contains embedded TypeScript type definitions for k6.
-//
-//go:embed dist/definitions/types/k6/**
-var TypeDefinitions embed.FS
-
 // Prompts contains embedded prompt markdown files.
 //
 //go:embed prompts/*.md
