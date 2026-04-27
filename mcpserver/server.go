@@ -35,6 +35,7 @@ type Config struct {
 	Addr      string // HTTP listen address (default: ":8080")
 	Endpoint  string // HTTP endpoint path (default: "/mcp")
 	Stateless bool   // Stateless mode for HTTP
+	Preload   bool   // Download all doc bundles at startup
 }
 
 // DefaultConfig returns a Config with default values.
@@ -105,6 +106,10 @@ func Run(ctx context.Context, logger *slog.Logger, stderr io.Writer, cfg Config,
 
 	catalog := docs.NewCatalog()
 
+	if cfg.Preload {
+		preloadBundles(ctx, logger, catalog)
+	}
+
 	s := createServer(catalog)
 
 	if cfg.Transport == "http" {
@@ -170,6 +175,22 @@ func createServer(catalog *docs.Catalog) *server.MCPServer {
 	prompts.RegisterConvertPlaywrightScriptPrompt(s)
 
 	return s
+}
+
+// preloadBundles downloads and indexes every known doc version so that
+// tool calls don't pay the download cost on first request.
+func preloadBundles(ctx context.Context, logger *slog.Logger, catalog *docs.Catalog) {
+	versions := catalog.Versions()
+	logger.Info("Preloading documentation bundles", slog.Int("versions", len(versions)))
+	for _, v := range versions {
+		if _, err := catalog.Index(ctx, v); err != nil {
+			logger.Warn("Failed to preload bundle",
+				slog.String("version", v),
+				slog.String("error", err.Error()))
+			continue
+		}
+		logger.Info("Preloaded bundle", slog.String("version", v))
+	}
 }
 
 func handleK6LookupError(logger *slog.Logger, stderr io.Writer, err error) int {
