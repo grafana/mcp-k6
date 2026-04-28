@@ -1,10 +1,10 @@
 # Repository Guidelines
 
 ## Project Structure & Module Organization
-The module `github.com/grafana/mcp-k6` is split by entrypoints in `cmd/`: `mcp-k6` starts the server and `prepare` refreshes embedded assets. Feature logic lives under `internal/` (`runner`, `sections`, `security`, `validator`, `logging`). Generated artifacts land in `dist/` and can be regenerated with `just prepare` or `just docs`. MCP resource bundles sit in `resources/`, while sample scripts live under `k6/`.
+The module `github.com/grafana/mcp-k6` is split by entrypoints in `cmd/`: `mcp-k6` starts the server and `prepare` collects TypeScript type definitions. Feature logic lives under `internal/` (`buildinfo`, `helpers`, `k6env`, `logging`, `security`). Documentation is served via the shared `github.com/grafana/xk6-docs/docs` package — downloaded on demand, cached locally, and kept fresh via ETag staleness checks. `dist/` holds embedded TypeScript type definitions. MCP tool handlers live in `tools/`, prompts in `prompts/`, and resources in `resources/`. Sample scripts live under `k6/`.
 
 ## Build, Test, and Development Commands
-Use `just run` for local development; it launches the server after rebuilding docs assets if needed. `just build`, `just install`, and `just release` create binaries with embedded version metadata. `just prepare` refreshes docs and types; `just clean` removes generated output. Without `just`, fall back to `go run ./cmd/mcp-k6` for dev and `go build -o mcp-k6 ./cmd/mcp-k6` for binaries.
+Use `make run` for local development; it launches the server after preparing type definitions. `make build`, `make install`, and `make release` create binaries with embedded version metadata. `make prepare` collects TypeScript type definitions into `dist/`; `make clean` removes generated output. `go run ./cmd/mcp-k6` and `go build -o mcp-k6 ./cmd/mcp-k6` work directly too.
 
 ## Coding Style & Naming Conventions
 Target Go 1.24.4. Always format with `gofmt` (tabs, trailing newline) and maintain import order via `goimports` or `golangci-lint run --enable-only=gofmt,goimports`. Keep package names aligned with their directories, export only what other packages need, and reuse the helpers in `internal/logging` for consistent output. Document new build tags before introducing them.

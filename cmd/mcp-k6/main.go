@@ -23,6 +23,7 @@ func main() {
 	fs.StringVar(&cfg.Addr, "addr", cfg.Addr, "HTTP address to listen on")
 	fs.StringVar(&cfg.Endpoint, "endpoint", cfg.Endpoint, "Endpoint path for HTTP transport")
 	fs.BoolVar(&cfg.Stateless, "stateless", cfg.Stateless, "Run in stateless mode (no session tracking)")
+	fs.BoolVar(&cfg.Preload, "preload", cfg.Preload, "Download all documentation bundles at startup")
 
 	//nolint:forbidigo // main must parse CLI arguments from os.Args.
 	if err := fs.Parse(os.Args[1:]); err != nil {

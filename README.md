@@ -2,7 +2,7 @@
 
 An **experimental** MCP (Model Context Protocol) server for k6, written in Go. It offers script validation, test execution, documentation browsing, and guided script generation.
 
-> [!IMPORTANT]  
+> [!IMPORTANT]
 > This project is still experimental. Expect sharp edges, keep a local clone up to date, and share feedback or issues so we can iterate quickly.
 
 ## Features
@@ -10,14 +10,14 @@ An **experimental** MCP (Model Context Protocol) server for k6, written in Go. I
 ### Tools
 - **Script Validation**: `validate_script` runs k6 scripts with minimal configuration (1 VU, 1 iteration) and returns actionable errors to help quickly produce correct code.
 - **Test Execution**: `run_script` runs k6 performance tests locally with configurable VUs, duration, stages, and options, and, when possible, extracts insights from the results.
-- **Documentation Browsing**: `list_sections` and `get_documentation` provide structured navigation of the official k6 docs and allow retrieving full markdown for specific sections.
+- **Documentation Browsing**: `list_sections` and `get_documentation` provide structured navigation of the official k6 docs and allow retrieving full markdown for specific sections. Docs are downloaded on first use, cached locally, and automatically kept fresh via periodic staleness checks.
 
 ### Resources
 - **Best Practices Resources**: Comprehensive k6 scripting guidelines and patterns to help you write effective, idiomatic, and correct tests.
-- **Type Definitions**: Up‑to‑date k6 TypeScript type definitions to improve accuracy and editor tooling.
+- **Type Definitions**: Up-to-date k6 TypeScript type definitions to improve accuracy and editor tooling.
 
 ### Prompts
-- **Script Generation** with `generate_script`: Generate production‑ready k6 test scripts from plain‑English requirements. It automatically follows modern testing practices by leveraging embedded best practices, documentation, and type definitions.
+- **Script Generation** with `generate_script`: Generate production-ready k6 test scripts from plain-English requirements. It automatically follows modern testing practices by leveraging embedded best practices, documentation, and type definitions.
 
 ## Getting Started
 
@@ -38,7 +38,7 @@ The easiest way to get started. The Docker image includes k6 and all dependencie
    ```bash
    docker pull grafana/mcp-k6:latest
    ```
-> [!NOTE]  
+> [!NOTE]
 > ### That's it! You're ready to run the containerized server.
 > Proceed to [Editor Integrations](#editor-integrations) to configure your editor.
 ---
@@ -58,7 +58,7 @@ brew install mcp-k6
 # Verify installation
 mcp-k6 --version
 ```
-> [!NOTE]  
+> [!NOTE]
 > To update to a newer version, download and install the latest formula again, or use `brew upgrade` if installed from the tap.
 > Proceed to [Editor Integrations](#editor-integrations) to configure your editor.
 
@@ -123,7 +123,7 @@ sudo yum install https://github.com/grafana/mcp-k6/releases/latest/download/mcp-
 mcp-k6 --version
 ```
 
-> [!NOTE]  
+> [!NOTE]
 > The binary is installed to `/usr/bin/mcp-k6`.
 > Proceed to [Editor Integrations](#editor-integrations) to configure your editor.
 ---
@@ -152,7 +152,7 @@ make --version
    cd mcp-k6
    ```
 
-2. **Prepare assets and install the server** (builds docs assets, embeds resources, installs `mcp-k6` into your Go bin):
+2. **Install the server** (embeds resources, installs `mcp-k6` into your Go bin):
    ```bash
    make install
    ```
@@ -167,11 +167,11 @@ make --version
    mcp-k6 --version
    ```
 
-Whenever docs or resources change, rebuild embeds with:
+Whenever type definitions or resources change, rebuild embeds with:
 ```bash
 make prepare
 ```
-> [!NOTE]  
+> [!NOTE]
 > Proceed to [Editor Integrations](#editor-integrations) to configure your editor.
 ---
 ## HTTP Transport Mode
@@ -200,6 +200,7 @@ docker run -p 8080:8080 grafana/mcp-k6 -transport=http -addr=:8080
 -   `-addr`: Listening address (default `:8080`). To listen on all interfaces, use `:8080` or `0.0.0.0:8080`.
 -   `-endpoint`: Endpoint path for the MCP server (default `/mcp`).
 -   `-stateless`: Run in stateless mode without session tracking (default `false`).
+-   `-preload`: Download all doc bundles at startup instead of on first request (default `false`).
 
 ## Remote Deployment (Team Usage)
 
@@ -365,7 +366,7 @@ Returns: `success`, `exit_code`, `stdout`, `stderr`, `error`, `duration`, `metri
 
 ### list_sections
 
-Browse the embedded documentation hierarchy without overwhelming model context. The tool returns a depth-limited tree (default depth 1) so you can progressively expand only the branches you need.
+Browse the documentation hierarchy without overwhelming model context. The tool returns a depth-limited tree (default depth 1) so you can progressively expand only the branches you need.
 
 Parameters:
 - `version` (string, optional): Specific docs version (`v1.4.x`, `all` for list).
@@ -444,12 +445,6 @@ Run `make list` to get a list of available Make commands.
 ```
 
 ## Troubleshooting
-
-### Build fails with “dist/sections.json: no matching files”
-Generate the docs assets first:
-```bash
-make docs
-```
 
 ### MCP Server Not Found
 If your editor can't find the mcp-k6 server:

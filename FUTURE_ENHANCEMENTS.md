@@ -67,26 +67,9 @@ This document tracks potential enhancements to the `list_sections` and `get_docu
 - Helps users discover relevant content
 - Reduces need for multiple searches
 
-## Caching
+## ~~Caching~~ ✅ Done
 
-**Goal:** Improve performance for frequently accessed sections.
-
-**Implementation:**
-1. Add LRU cache for markdown content
-2. Configure max cache size (e.g., 10MB, 50 sections)
-3. Cache at get_documentation level
-4. Add cache metrics (hits, misses, evictions)
-5. Optional: Pre-warm cache with popular sections at startup
-
-**Benefits:**
-- Reduced memory allocations
-- Faster repeated access
-- Lower GC pressure
-
-**Considerations:**
-- Memory usage trade-offs
-- Cache invalidation strategy (not needed for embedded content)
-- Monitor cache efficiency
+Implemented via the shared `github.com/grafana/xk6-docs/docs` package. Bundles are downloaded per version on first request, cached locally (`~/.local/share/k6/docs/{version}/`), and checked for staleness every 24h via ETag HEAD requests. The `-preload` flag eagerly downloads all versions at startup.
 
 ## Version-Specific Features
 
@@ -136,10 +119,10 @@ This document tracks potential enhancements to the `list_sections` and `get_docu
 
 **Goal:** Better support for working with older k6 versions.
 
-**Current Implementation:** Embeds last 3-4 versions
+**Current Implementation:** All versions available via HTTP+cache (no longer embedded). Bundles are downloaded on demand per version. The `-preload` flag downloads all versions at startup.
 
-**Future Enhancements:**
-1. **On-demand version download:** Fetch older versions from GitHub when requested
+**Remaining Enhancements:**
+1. ~~**On-demand version download:** Fetch older versions from GitHub when requested~~ ✅ Done via the shared `xk6-docs/docs` package.
 2. **Version comparison:** Show diff between two versions of a section
 3. **Deprecation warnings:** Highlight deprecated features in older versions
 4. **Auto-upgrade suggestions:** Suggest newer equivalents for old APIs

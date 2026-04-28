@@ -11,13 +11,12 @@ import (
 
 	"github.com/mark3labs/mcp-go/server"
 
-	k6mcp "github.com/grafana/mcp-k6"
 	"github.com/grafana/mcp-k6/internal/buildinfo"
 	"github.com/grafana/mcp-k6/internal/k6env"
-	"github.com/grafana/mcp-k6/internal/sections"
 	"github.com/grafana/mcp-k6/prompts"
 	"github.com/grafana/mcp-k6/resources"
 	"github.com/grafana/mcp-k6/tools"
+	"github.com/grafana/xk6-docs/docs"
 )
 
 // instructions is a high-level overview of the tools and resources available.
@@ -36,6 +35,7 @@ type Config struct {
 	Addr      string // HTTP listen address (default: ":8080")
 	Endpoint  string // HTTP endpoint path (default: "/mcp")
 	Stateless bool   // Stateless mode for HTTP
+	Preload   bool   // Download all doc bundles at startup
 }
 
 // DefaultConfig returns a Config with default values.
@@ -104,13 +104,13 @@ func Run(ctx context.Context, logger *slog.Logger, stderr io.Writer, cfg Config,
 
 	logger.Info("Detected k6 executable", slog.String("path", k6Info.Path))
 
-	finder, err := loadSectionsIndex(logger)
-	if err != nil {
-		logger.Error("Failed to load sections index", slog.String("error", err.Error()))
-		return 1
+	catalog := docs.NewCatalog()
+
+	if cfg.Preload {
+		preloadBundles(ctx, logger, catalog)
 	}
 
-	s := createServer(finder)
+	s := createServer(catalog)
 
 	if cfg.Transport == "http" {
 		return r.serveHTTP(logger, stderr, s, cfg)
@@ -151,7 +151,7 @@ func (r *runner) serveHTTP(logger *slog.Logger, stderr io.Writer, s *server.MCPS
 	return 0
 }
 
-func createServer(finder *sections.Finder) *server.MCPServer {
+func createServer(catalog *docs.Catalog) *server.MCPServer {
 	s := server.NewMCPServer(
 		"k6",
 		buildinfo.Version,
@@ -165,8 +165,8 @@ func createServer(finder *sections.Finder) *server.MCPServer {
 	tools.RegisterValidateTool(s)
 	tools.RegisterRunTool(s)
 	tools.RegisterSearchTerraformTool(s)
-	tools.RegisterListSectionsTool(s, finder)
-	tools.RegisterGetDocumentationTool(s, finder)
+	tools.RegisterListSectionsTool(s, catalog)
+	tools.RegisterGetDocumentationTool(s, catalog)
 
 	resources.RegisterBestPracticesResource(s)
 	resources.RegisterTypeDefinitionsResources(s)
@@ -177,24 +177,20 @@ func createServer(finder *sections.Finder) *server.MCPServer {
 	return s
 }
 
-func loadSectionsIndex(logger *slog.Logger) (*sections.Finder, error) {
-	logger.Info("Loading sections index")
-	sectionsIdx, err := sections.LoadJSON(k6mcp.SectionsIndex)
-	if err != nil {
-		return nil, fmt.Errorf("failed to load sections index: %w", err)
+// preloadBundles downloads and indexes every known doc version so that
+// tool calls don't pay the download cost on first request.
+func preloadBundles(ctx context.Context, logger *slog.Logger, catalog *docs.Catalog) {
+	versions := catalog.Versions()
+	logger.Info("Preloading documentation bundles", slog.Int("versions", len(versions)))
+	for _, v := range versions {
+		if _, err := catalog.Index(ctx, v); err != nil {
+			logger.Warn("Failed to preload bundle",
+				slog.String("version", v),
+				slog.String("error", err.Error()))
+			continue
+		}
+		logger.Info("Preloaded bundle", slog.String("version", v))
 	}
-	finder := sections.NewFinder(sectionsIdx)
-
-	totalSections := 0
-	for _, secs := range sectionsIdx.Sections {
-		totalSections += len(secs)
-	}
-	logger.Info("Loaded sections index",
-		slog.Int("version_count", len(sectionsIdx.Versions)),
-		slog.Int("total_sections", totalSections),
-		slog.String("latest_version", sectionsIdx.Latest))
-
-	return finder, nil
 }
 
 func handleK6LookupError(logger *slog.Logger, stderr io.Writer, err error) int {
