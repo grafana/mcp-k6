@@ -99,7 +99,9 @@ func newGetDocumentationHandlerFunc(
 			logger.WarnContext(ctx, "Failed to load index",
 				slog.String("version", params.Version),
 				slog.String("error", err.Error()))
-			return mcp.NewToolResultError(err.Error()), nil
+			return mcp.NewToolResultError(
+				versionError(params.Version, catalog, err).Error(),
+			), nil
 		}
 
 		section, err := lookupSection(ctx, logger, idx, params.Slug)

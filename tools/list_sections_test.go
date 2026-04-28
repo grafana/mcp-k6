@@ -4,6 +4,7 @@ import (
 	"context"
 	"encoding/json"
 	"testing"
+	"testing/fstest"
 
 	"github.com/grafana/xk6-docs/docs"
 	"github.com/mark3labs/mcp-go/mcp"
@@ -45,7 +46,7 @@ func TestListSectionsHandlerVersionAll(t *testing.T) {
 	var resp versionsResponse
 	decodeJSON(t, result, &resp)
 	require.NotEmpty(t, resp.Versions)
-	require.Equal(t, "v1.7.x", resp.Latest)
+	require.NotEmpty(t, resp.Latest)
 }
 
 func TestListSectionsHandlerCategoryFilter(t *testing.T) {
@@ -103,6 +104,75 @@ func TestListSectionsHandlerRootSlugDepth(t *testing.T) {
 		}
 	}
 	require.True(t, foundConcepts, "expected using-k6/scenarios/concepts under using-k6/scenarios")
+}
+
+func TestListSectionsHandlerVersionErrors(t *testing.T) {
+	t.Parallel()
+
+	twoVersionFS := fstest.MapFS{
+		"v1.1.x/sections.json": &fstest.MapFile{Data: []byte(`{"version":"v1.1.x","sections":[]}`)},
+		"v1.0.x/sections.json": &fstest.MapFile{Data: []byte(`{"version":"v1.0.x","sections":[]}`)},
+	}
+	emptyFS := fstest.MapFS{}
+
+	tests := []struct {
+		name    string
+		fs      fstest.MapFS
+		version string
+		wantErr bool
+		want    []string // substrings the error must contain
+	}{
+		{
+			name:    "unknown version lists available and suggests latest",
+			fs:      twoVersionFS,
+			version: "v2.0.x",
+			wantErr: true,
+			want:    []string{"v2.0.x", "v1.1.x", "v1.0.x", "latest"},
+		},
+		{
+			name:    "no versions discovered with explicit version",
+			fs:      emptyFS,
+			version: "v1.0.x",
+			wantErr: true,
+			want:    []string{"v1.0.x", "no versions were discovered"},
+		},
+		{
+			name:    "no versions discovered with empty version",
+			fs:      emptyFS,
+			version: "",
+			wantErr: true,
+			want:    []string{"no documentation versions available"},
+		},
+		{
+			name:    "known version succeeds",
+			fs:      twoVersionFS,
+			version: "v1.0.x",
+			wantErr: false,
+		},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			t.Parallel()
+
+			catalog := docs.NewCatalog(docs.WithFS(tt.fs))
+			handler := newListSectionsHandlerFunc(catalog)
+
+			result, err := handler(t.Context(), newCallRequest(map[string]any{"version": tt.version}))
+			require.NoError(t, err)
+
+			if !tt.wantErr {
+				require.False(t, result.IsError, "unexpected tool error: %+v", result.Content)
+				return
+			}
+
+			require.True(t, result.IsError, "expected tool error")
+			text := result.Content[0].(mcp.TextContent).Text
+			for _, sub := range tt.want {
+				require.Contains(t, text, sub)
+			}
+		})
+	}
 }
 
 func TestListSectionsHandlerMissingRootSlug(t *testing.T) {

@@ -6,7 +6,7 @@ import (
 	"fmt"
 	"iter"
 	"log/slog"
-	"slices"
+	"strings"
 
 	"github.com/grafana/mcp-k6/internal/logging"
 	"github.com/grafana/xk6-docs/docs"
@@ -125,20 +125,14 @@ func newListSectionsHandlerFunc(
 			return handleVersionsRequest(ctx, logger, catalog)
 		}
 
-		if params.Version != "" && !slices.Contains(catalog.Versions(), params.Version) {
-			err := fmt.Errorf("version not found: %s. Use version='all' to see available versions", params.Version)
-			logger.WarnContext(ctx, "Version not found",
-				slog.String("version", params.Version),
-				slog.Any("available_versions", catalog.Versions()))
-			return mcp.NewToolResultError(err.Error()), nil
-		}
-
 		idx, err := catalog.Index(ctx, params.Version)
 		if err != nil {
-			logger.ErrorContext(ctx, "Failed to load index",
+			logger.WarnContext(ctx, "Failed to load index",
 				slog.String("version", params.Version),
 				slog.String("error", err.Error()))
-			return mcp.NewToolResultError(err.Error()), nil
+			return mcp.NewToolResultError(
+				versionError(params.Version, catalog, err).Error(),
+			), nil
 		}
 
 		tree, total, ok := buildResponseTree(idx, params)
@@ -322,6 +316,24 @@ func buildListSectionsResponse(
 	}
 
 	return resp
+}
+
+// versionError returns an actionable error when a requested documentation
+// version could not be loaded. When version is empty (default/latest was
+// requested), it returns the original catalog error unchanged.
+func versionError(version string, catalog *docs.Catalog, original error) error {
+	if version == "" {
+		return original
+	}
+	available := catalog.Versions()
+	if len(available) == 0 {
+		return fmt.Errorf("version %s is not available and no versions were discovered", version)
+	}
+	return fmt.Errorf(
+		"version %s is not available (available: %s). "+
+			"Omit the version parameter to use the latest (%s)",
+		version, strings.Join(available, ", "), catalog.Latest(),
+	)
 }
 
 func marshalResponse(ctx context.Context, logger *slog.Logger, v any) (*mcp.CallToolResult, error) {
