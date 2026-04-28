@@ -1,8 +1,9 @@
 # Build stage
-FROM golang:1.26-alpine@sha256:d4c4845f5d60c6a974c6000ce58ae079328d03ab7f721a0734277e69905473e5 AS builder
+FROM golang:1.25.7-alpine AS builder
 
 # Install build dependencies
 RUN apk add --no-cache make bash git
+RUN apk update && apk upgrade --no-cache 
 
 # Set the working directory
 WORKDIR /app
@@ -20,7 +21,7 @@ COPY . .
 RUN make build
 
 # Final stage
-FROM grafana/k6:latest-with-browser@sha256:f44e435069ccea164edb86ff36429ed8cc1489cd57797e9ff52480625fca8cf5
+FROM grafana/k6:1.7.1-with-browser
 
 LABEL io.modelcontextprotocol.server.name="io.github.grafana/mcp-k6"
 
