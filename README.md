@@ -26,6 +26,7 @@ Choose your preferred installation method:
 - [🍎 Option 2: Homebrew macOS](#option-2-homebrew-macos)
 - [🐧 Option 3: Package Installation (Linux)](#option-3-package-installation-linux)
 - [💻 Option 4: Native Installation](#option-4-native-installation)
+- [🔧 Option 5: k6 Subcommand (xk6)](#option-5-k6-subcommand-xk6)
 ---
 ### Option 1: Docker (Recommended)
 
@@ -171,6 +172,29 @@ Whenever type definitions or resources change, rebuild embeds with:
 ```bash
 make prepare
 ```
+> [!NOTE]
+> Proceed to [Editor Integrations](#editor-integrations) to configure your editor.
+---
+### Option 5: k6 Subcommand (xk6)
+
+Use [xk6](https://github.com/grafana/xk6) to build a custom k6 binary that embeds mcp-k6 as a `k6 x mcp` subcommand. This gives you a single binary that runs both k6 load tests and the MCP server.
+
+**Prerequisites:**
+- **xk6**: `go install go.k6.io/xk6/cmd/xk6@latest`
+- **Go 1.24.4+**
+
+**Build:**
+```bash
+make prepare && xk6 build --with github.com/grafana/mcp-k6=.
+```
+
+**Run:**
+```bash
+./k6 x mcp --transport stdio
+```
+
+Supports the same flags as `mcp-k6` (see [Configuration Flags](#configuration-flags)).
+
 > [!NOTE]
 > Proceed to [Editor Integrations](#editor-integrations) to configure your editor.
 ---
