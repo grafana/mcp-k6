@@ -1,11 +1,9 @@
-// Package k6extension registers mcp-k6 as a "mcp" subcommand in a custom k6 binary.
-// Import this package with a blank identifier to activate the registration:
-//
-//	import _ "github.com/grafana/mcp-k6/k6extension"
-package k6extension
+// Package k6mcp registers mcp-k6 as a k6 subcommand extension ("k6 x mcp").
+// Import this package via xk6 to activate the subcommand.
+package k6mcp
 
 import (
-	"os" //nolint:forbidigo // subcommand must propagate the server exit code
+	"os"
 
 	"github.com/spf13/cobra"
 	"go.k6.io/k6/v2/cmd/state"
