@@ -101,6 +101,12 @@ func Default() *slog.Logger {
 	return defaultLogger
 }
 
+// SetDefault replaces the default logger. Must be called once at startup,
+// before any tools or prompts are registered.
+func SetDefault(l *slog.Logger) {
+	defaultLogger = l
+}
+
 // WithContext returns a logger with context-specific attributes
 func WithContext(ctx context.Context) *slog.Logger {
 	logger := defaultLogger
