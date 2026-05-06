@@ -35,11 +35,11 @@ documentation browsing, and guided script generation.`,
 		},
 	}
 
-	cmd.Flags().StringVarP(&cfg.Transport, "transport", "t", cfg.Transport, "Transport mode: stdio or http")
-	cmd.Flags().StringVarP(&cfg.Addr, "addr", "a", cfg.Addr, "HTTP address to listen on")
-	cmd.Flags().StringVarP(&cfg.Endpoint, "endpoint", "e", cfg.Endpoint, "Endpoint path for HTTP transport")
-	cmd.Flags().BoolVarP(&cfg.Stateless, "stateless", "s", cfg.Stateless, "Run in stateless mode (no session tracking)")
-	cmd.Flags().BoolVarP(&cfg.Preload, "preload", "p", cfg.Preload, "Download all documentation bundles at startup")
+	cmd.Flags().StringVar(&cfg.Transport, "transport", cfg.Transport, "Transport mode: stdio or http")
+	cmd.Flags().StringVar(&cfg.Addr, "addr", cfg.Addr, "HTTP address to listen on")
+	cmd.Flags().StringVar(&cfg.Endpoint, "endpoint", cfg.Endpoint, "Endpoint path for HTTP transport")
+	cmd.Flags().BoolVar(&cfg.Stateless, "stateless", cfg.Stateless, "Run in stateless mode (no session tracking)")
+	cmd.Flags().BoolVar(&cfg.Preload, "preload", cfg.Preload, "Download all documentation bundles at startup")
 
 	return cmd
 }
