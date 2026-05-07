@@ -9,7 +9,6 @@ import (
 	"path/filepath"
 	"strings"
 
-	k6mcp "github.com/grafana/mcp-k6"
 	"github.com/grafana/mcp-k6/internal/logging"
 	"github.com/mark3labs/mcp-go/mcp"
 	"github.com/mark3labs/mcp-go/server"
@@ -46,7 +45,7 @@ func convertPlaywrightScript(
 		return nil, err
 	}
 
-	templateContent, err := k6mcp.Prompts.ReadFile("prompts/convert_playwright_script.md")
+	templateContent, err := promptFiles.ReadFile("convert_playwright_script.md")
 	if err != nil {
 		logger.ErrorContext(ctx, "Failed to read embedded prompt template",
 			slog.String("error", err.Error()))

@@ -7,7 +7,6 @@ import (
 	"log/slog"
 	"strings"
 
-	k6mcp "github.com/grafana/mcp-k6"
 	"github.com/grafana/mcp-k6/internal/logging"
 	"github.com/mark3labs/mcp-go/mcp"
 	"github.com/mark3labs/mcp-go/server"
@@ -59,7 +58,7 @@ func generateScript(
 	logger.DebugContext(ctx, "Loading prompt template")
 
 	// Load prompt template from embedded content
-	templateContent, err := k6mcp.Prompts.ReadFile("prompts/generate_script.md")
+	templateContent, err := promptFiles.ReadFile("generate_script.md")
 	if err != nil {
 		logger.ErrorContext(ctx, "Failed to read embedded prompt template",
 			slog.String("error", err.Error()))

@@ -22,7 +22,12 @@ const (
 	DistDTSFileSuffix = ".d.ts"
 )
 
-// DefinitionsPath is the path to the definitions folder as embedded in the go file
+// DefinitionsPath is the path to the definitions folder on disk (relative to the module root).
 //
 //nolint:gochecknoglobals // Computed constant path based on const values
 var DefinitionsPath = filepath.Join(DistFolderName, DistDefinitionsFolderName, DistTypesFolderName, DistK6FolderName)
+
+// EmbeddedDefinitionsPath is the path prefix within the dist.TypeDefinitions embedded FS.
+//
+//nolint:gochecknoglobals // Computed constant path based on const values
+var EmbeddedDefinitionsPath = filepath.Join(DistDefinitionsFolderName, DistTypesFolderName, DistK6FolderName)

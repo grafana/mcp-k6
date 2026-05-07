@@ -5,7 +5,6 @@ import (
 	"context"
 	"fmt"
 
-	k6mcp "github.com/grafana/mcp-k6"
 	"github.com/mark3labs/mcp-go/mcp"
 	"github.com/mark3labs/mcp-go/server"
 )
@@ -27,7 +26,7 @@ func RegisterBestPracticesResource(s *server.MCPServer) {
 
 // bestPractices is the handler for the best practices resource.
 func bestPractices(_ context.Context, _ mcp.ReadResourceRequest) ([]mcp.ResourceContents, error) {
-	content, err := k6mcp.Resources.ReadFile("resources/best_practices.md")
+	content, err := resourceFiles.ReadFile("best_practices.md")
 	if err != nil {
 		return nil, fmt.Errorf("failed to read embedded best practices resource: %w", err)
 	}
