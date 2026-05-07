@@ -25,10 +25,10 @@ func newCommand(gs *state.GlobalState) *cobra.Command {
 	cmd := &cobra.Command{
 		Use:   "mcp",
 		Short: "MCP server",
-		Long: `An experimental MCP server for k6.
-
-The Model Context Protocol server offers script validation, test execution,
-documentation browsing, and guided script generation.`,
+		Long: `Start the k6 MCP server for AI agent integrations.
+		
+The MCP server provides tools for running and validating k6 scripts,
+browsing k6 documentation, and searching for Terraform resources.`,
 		Run: func(cmd *cobra.Command, _ []string) {
 			//nolint:forbidigo // subcommand must propagate the server exit code
 			os.Exit(mcpserver.Run(cmd.Context(), logger, gs.Stderr, cfg))

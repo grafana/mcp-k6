@@ -169,7 +169,6 @@ func createServer(catalog *docs.Catalog) *server.MCPServer {
 	tools.RegisterGetDocumentationTool(s, catalog)
 
 	resources.RegisterBestPracticesResource(s)
-	resources.RegisterTypeDefinitionsResources(s)
 
 	prompts.RegisterGenerateScriptPrompt(s)
 	prompts.RegisterConvertPlaywrightScriptPrompt(s)
