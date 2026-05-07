@@ -23,8 +23,7 @@ import (
 const instructions = `
 Use the provided tools for running or validating k6 scripts, for browsing the k6 OSS docs, or
 for searching for k6 Cloud-related Terraform resources in the Grafana Terraform provider.
-Use the provided resources for understanding the k6 script authoring best practices and for consulting
-type definitions.
+Use the provided resources for understanding the k6 script authoring best practices.
 List the resources at least once before trying to access one of them.
 Use the provided prompts as a good starting point for authoring complex k6 scripts.
 `
@@ -169,7 +168,6 @@ func createServer(catalog *docs.Catalog) *server.MCPServer {
 	tools.RegisterGetDocumentationTool(s, catalog)
 
 	resources.RegisterBestPracticesResource(s)
-	resources.RegisterTypeDefinitionsResources(s)
 
 	prompts.RegisterGenerateScriptPrompt(s)
 	prompts.RegisterConvertPlaywrightScriptPrompt(s)

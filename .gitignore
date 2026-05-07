@@ -1,7 +1,3 @@
-# Ignore distribution files
-dist/
-!dist/embed.go
-
 # Ignore Go build cache generated during local runs
 .gocache/
 
