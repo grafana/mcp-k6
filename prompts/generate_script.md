@@ -14,16 +14,14 @@ Generate a production-ready k6 script that accurately implements the user's requ
 {{.Description}}
 
 ## IMPLEMENTATION WORKFLOW
-Follow these steps in order to ensure high-quality output:
-- Open the corresponding "types://k6/**/*.d.ts" resources for any APIs you plan to use; validate import paths, function signatures, option names, and return types.
-- Treat the type definitions as the source of truth when examples conflict; avoid deprecated or experimental APIs unless explicitly requested.
+Follow these steps in order to ensure high-quality output.
 
 ### Step 1: Research & Discovery
 - Use the "list_sections" tool to locate relevant documentation areas, then "get_documentation" for specific sections.
 - Prefer narrow targets with clear slugs (e.g., `javascript-api/k6-http`, `using-k6/scenarios`, `using-k6/thresholds`).
 - If the tree is large, drill down with `root_slug` before fetching content.
 - Capture short citations (doc title and path) for relevant results and include them in the Research Summary.
-- Mirror idiomatic syntax from the docs, but rely on the types for exact shapes (e.g., `Options['thresholds']`, `import http from 'k6/http'`).
+- Treat the official documentation as the source of truth when examples conflict; avoid deprecated or experimental APIs unless explicitly requested.
 
 ### Step 2: Best Practices Review
 - Access the "docs://k6/best_practices" resource to review current guidelines

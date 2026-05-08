@@ -1,13 +1,7 @@
 version: 2
 
-# Use 'release' directory for goreleaser output (dist/ is used for embedded assets)
+# Use 'release' directory for goreleaser output
 dist: release
-
-# Hooks to run before the build
-before:
-  hooks:
-    # Generate embedded assets (SQLite FTS5 index, TypeScript types)
-    - make prepare
 
 # Build configuration
 builds:

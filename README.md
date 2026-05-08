@@ -14,10 +14,9 @@ An **experimental** MCP (Model Context Protocol) server for k6, written in Go. I
 
 ### Resources
 - **Best Practices Resources**: Comprehensive k6 scripting guidelines and patterns to help you write effective, idiomatic, and correct tests.
-- **Type Definitions**: Up-to-date k6 TypeScript type definitions to improve accuracy and editor tooling.
 
 ### Prompts
-- **Script Generation** with `generate_script`: Generate production-ready k6 test scripts from plain-English requirements. It automatically follows modern testing practices by leveraging embedded best practices, documentation, and type definitions.
+- **Script Generation** with `generate_script`: Generate production-ready k6 test scripts from plain-English requirements. It automatically follows modern testing practices by leveraging embedded best practices and the official k6 documentation.
 
 ## Getting Started
 
@@ -168,10 +167,6 @@ make --version
    mcp-k6 --version
    ```
 
-Whenever type definitions or resources change, rebuild embeds with:
-```bash
-make prepare
-```
 > [!NOTE]
 > Proceed to [Editor Integrations](#editor-integrations) to configure your editor.
 ---
@@ -185,7 +180,7 @@ Use [xk6](https://github.com/grafana/xk6) to build a custom k6 binary that embed
 
 **Build:**
 ```bash
-make prepare && xk6 build --with github.com/grafana/mcp-k6=.
+xk6 build --with github.com/grafana/mcp-k6=.
 ```
 
 **Run:**
