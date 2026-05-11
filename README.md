@@ -296,6 +296,32 @@ claude mcp add --scope=user --transport=stdio k6 mcp-k6
 
 Use `--scope=local` if you prefer the configuration to live inside the current project. Reload the workspace to pick up the new server.
 
+#### Claude Code Skill (optional)
+
+A `/k6-generate` skill is included in this repo. It wraps the full script-generation workflow into a single discoverable command and degrades gracefully when mcp-k6 is not connected.
+
+**Install globally** (works in any project):
+```bash
+cp -r .claude/skills/k6-generate ~/.claude/skills/
+cp resources/best_practices.md ~/.claude/skills/k6-generate/best_practices.md
+```
+
+**Install per-project** (checked in with your repo):
+```bash
+cp -r .claude/skills/k6-generate /path/to/your-project/.claude/skills/
+cp resources/best_practices.md /path/to/your-project/.claude/skills/k6-generate/best_practices.md
+```
+
+**Usage in Claude Code:**
+```
+/k6-generate load test my payments API at 100 concurrent users
+/k6-generate browser test for the checkout flow on example.com
+/k6-generate WebSocket stress test for a chat service
+```
+
+- **With mcp-k6 connected:** uses `list_sections`, `get_documentation`, and `docs://k6/best_practices` for up-to-date context, then validates with `validate_script` and offers `run_script`.
+- **Without mcp-k6:** generates a production-ready script using the best practices bundled in the skill directory (`best_practices.md`) and saves it to `k6/scripts/`.
+
 #### Claude Desktop
 
 Place one of the following snippets in your Claude Desktop MCP configuration file (create it if necessary):
