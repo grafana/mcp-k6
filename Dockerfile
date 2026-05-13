@@ -20,7 +20,7 @@ COPY . .
 RUN make build
 
 # Final stage
-FROM grafana/k6:latest-with-browser@sha256:6739361fcfc03c44032b345a9e280c4af3222e75d9e29effd09a223791b90a84
+FROM grafana/k6:latest-with-browser@sha256:f07f174bdf5852b3819e55edd0ef0906d3d32d285d4b4750fc763d70a83ee80e
 
 LABEL io.modelcontextprotocol.server.name="io.github.grafana/mcp-k6"
 
