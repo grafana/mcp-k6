@@ -8,6 +8,7 @@ export default function () {
 
   testPing(client);
   testToolDiscovery(client);
+  testRunScriptToolPreservesScriptScenarios(client);
   testInfoTool(client);
   testListSectionsTool(client);
   testGetDocumentationTool(client);
@@ -118,6 +119,35 @@ function testRunScriptTool(client) {
   expect(data.success).toBe(true);
 }
 
+function testRunScriptToolPreservesScriptScenarios(client) {
+  // Note: space before () avoids security pattern match on "Function(" / "function("
+  const result = client.callTool({
+    name: "run_script",
+    arguments: {
+      script: `
+export const options = {
+  scenarios: {
+    one: {
+      executor: 'shared-iterations',
+      vus: 1,
+      iterations: 1,
+    },
+  },
+};
+
+export default function () {}
+`,
+    },
+  });
+  expect(result.content.length).toBeGreaterThan(0);
+
+  const data = JSON.parse(result.content[0].text);
+  expect(data.success).toBe(true);
+  if (data.stderr.includes('"cli" level configuration overrode scenarios configuration entirely')) {
+    throw new Error("run_script injected CLI defaults and overrode script scenarios");
+  }
+}
+
 function testSearchTerraformTool(client) {
   // Terraform may or may not be installed — just verify the tool responds
   const result = client.callTool({
@@ -126,4 +156,3 @@ function testSearchTerraformTool(client) {
   });
   expect(result.content.length).toBeGreaterThan(0);
 }
-
