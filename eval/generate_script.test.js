@@ -15,7 +15,7 @@ const TASK =
     'users for 10 seconds and checks that the response status is 200. First consult the k6 documentation ' +
     'tools to use the correct APIs, then validate your final script with the validation tool. Return the script.';
 
-const claude = new ExternalAgent({
+const claude = new CliAgent({
   name: 'mcp-k6-agent',
   command: 'claude',
   args: [
