@@ -72,7 +72,7 @@ func TestBuildK6Args(t *testing.T) {
 	}
 }
 
-const emptyDefaultExportScript = "export default function () {}"
+const emptyDefaultExportScript = "export default function() {}"
 
 func TestParseRunOptions(t *testing.T) {
 	t.Parallel()
@@ -267,6 +267,6 @@ func scenarioScript() string {
   },
 };
 
-export default function () {}
-`
+export default function() {}
+	`
 }

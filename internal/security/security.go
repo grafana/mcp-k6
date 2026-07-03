@@ -291,10 +291,8 @@ func dangerousPatternCatalog() map[string]PatternInfo {
 
 // checkDangerousPatternsWithSuggestions scans for dangerous patterns and provides corrections
 func checkDangerousPatternsWithSuggestions(ctx context.Context, content string) error {
-	contentLower := strings.ToLower(content)
-
 	for pattern, info := range dangerousPatternCatalog() {
-		if strings.Contains(contentLower, strings.ToLower(pattern)) {
+		if strings.Contains(content, pattern) {
 			err := &Error{
 				Type: "DANGEROUS_PATTERN",
 				Message: fmt.Sprintf(

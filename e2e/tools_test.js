@@ -103,11 +103,10 @@ function testValidateScriptTool(client) {
 }
 
 function testRunScriptTool(client) {
-  // Note: space before () avoids security pattern match on "Function(" / "function("
   const result = client.callTool({
     name: "run_script",
     arguments: {
-      script: "export default function () {}",
+      script: "export default function() {}",
       iterations: 1,
     },
   });
@@ -120,7 +119,6 @@ function testRunScriptTool(client) {
 }
 
 function testRunScriptToolPreservesScriptScenarios(client) {
-  // Note: space before () avoids security pattern match on "Function(" / "function("
   const result = client.callTool({
     name: "run_script",
     arguments: {
@@ -135,7 +133,7 @@ export const options = {
   },
 };
 
-export default function () {}
+export default function() {}
 `,
     },
   });
