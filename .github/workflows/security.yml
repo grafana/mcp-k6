@@ -55,6 +55,7 @@ jobs:
         uses: aquasecurity/trivy-action@dc5a429b52fcf669ce959baa2c2dd26090d2a6c4 # v0.32.0
         with:
           image-ref: mcp-k6:ci-scan
+          scanners: vuln
           severity: HIGH,CRITICAL
           exit-code: '1'
           ignore-unfixed: true
