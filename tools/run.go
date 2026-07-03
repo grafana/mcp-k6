@@ -6,6 +6,7 @@ import (
 	"errors"
 	"fmt"
 	"log/slog"
+	"math"
 	"os/exec"
 	"strconv"
 	"strings"
@@ -16,6 +17,8 @@ import (
 	"github.com/grafana/mcp-k6/internal/security"
 	"github.com/mark3labs/mcp-go/mcp"
 	"github.com/mark3labs/mcp-go/server"
+	"go.k6.io/k6/v2/lib/types"
+	"gopkg.in/guregu/null.v3"
 )
 
 // RunTool exposes a tool for running k6 test scripts.
@@ -38,14 +41,16 @@ var RunTool = mcp.NewTool(
 	mcp.WithNumber(
 		"vus",
 		mcp.Description(
-			"Number of virtual users (default: 1, max: 50). "+
-				"Examples: 1 for basic test, 10 for moderate load, 50 for stress test.",
+			"Number of virtual users. "+
+				"When omitted, script-defined options and k6 defaults are used. "+
+				"Examples: 1 for basic test, 10 for moderate load, 100 for stress test.",
 		),
 	),
 	mcp.WithString(
 		"duration",
 		mcp.Description(
-			"Test duration (default: '30s', max: '5m'). "+
+			"Test duration (max: '5m'). "+
+				"When omitted, script-defined options and k6 defaults are used. "+
 				"Examples: '30s', '2m', '5m'. Overridden by iterations if specified.",
 		),
 	),
@@ -69,15 +74,12 @@ func run(ctx context.Context, request mcp.CallToolRequest) (*mcp.CallToolResult,
 		return nil, err
 	}
 
-	vus := request.GetInt("vus", 1)
-	duration := request.GetString("duration", "30s")
-	iterations := request.GetInt("iterations", 0)
+	options, err := parseRunOptions(request)
+	if err != nil {
+		return nil, err
+	}
 
-	result, err := RunK6Test(ctx, script, &RunOptions{
-		VUs:        vus,
-		Duration:   duration,
-		Iterations: iterations,
-	})
+	result, err := RunK6Test(ctx, script, options)
 	if err != nil {
 		return nil, err
 	}
@@ -91,24 +93,151 @@ func run(ctx context.Context, request mcp.CallToolRequest) (*mcp.CallToolResult,
 }
 
 const (
-	// DefaultVUs is the default number of virtual users.
-	DefaultVUs = 1
-
-	// DefaultDuration is the default test duration.
-	DefaultDuration = "30s"
-
-	// MaxVUs is the maximum number of virtual users allowed.
-	MaxVUs = 50
-
 	// MaxDuration is the maximum test duration allowed.
 	MaxDuration = 5 * time.Minute
 )
 
 // RunOptions contains configuration options for running k6 tests.
 type RunOptions struct {
-	VUs        int    `json:"vus,omitempty"`
-	Duration   string `json:"duration,omitempty"`
-	Iterations int    `json:"iterations,omitempty"`
+	VUs        null.Int           `json:"vus,omitempty"`
+	Duration   types.NullDuration `json:"duration,omitempty"`
+	Iterations null.Int           `json:"iterations,omitempty"`
+}
+
+func parseRunOptions(request mcp.CallToolRequest) (*RunOptions, error) {
+	args := request.GetArguments()
+
+	vus, err := parseOptionalIntArg(args, "vus")
+	if err != nil {
+		return nil, err
+	}
+
+	duration, err := parseOptionalDurationArg(args, "duration")
+	if err != nil {
+		return nil, err
+	}
+
+	iterations, err := parseOptionalIntArg(args, "iterations")
+	if err != nil {
+		return nil, err
+	}
+
+	return &RunOptions{
+		VUs:        vus,
+		Duration:   duration,
+		Iterations: iterations,
+	}, nil
+}
+
+func parseOptionalIntArg(args map[string]any, name string) (null.Int, error) {
+	value, exists := args[name]
+	if !exists || value == nil {
+		return null.Int{}, nil
+	}
+
+	parsed, err := parseIntValue(value)
+	if err != nil {
+		return null.Int{}, &RunError{
+			Type:    errTypeParameterValidation,
+			Message: fmt.Sprintf("%s must be an integer", name),
+			Cause:   err,
+		}
+	}
+	if parsed == 0 {
+		return null.Int{}, nil
+	}
+
+	return null.IntFrom(parsed), nil
+}
+
+func parseIntValue(value any) (int64, error) {
+	switch typedValue := value.(type) {
+	case int:
+		return int64(typedValue), nil
+	case int8:
+		return int64(typedValue), nil
+	case int16:
+		return int64(typedValue), nil
+	case int32:
+		return int64(typedValue), nil
+	case int64:
+		return typedValue, nil
+	case uint:
+		if uint64(typedValue) > math.MaxInt64 {
+			return 0, fmt.Errorf("value %d exceeds maximum integer value", typedValue)
+		}
+		return int64(typedValue), nil
+	case uint8:
+		return int64(typedValue), nil
+	case uint16:
+		return int64(typedValue), nil
+	case uint32:
+		return int64(typedValue), nil
+	case uint64:
+		if typedValue > math.MaxInt64 {
+			return 0, fmt.Errorf("value %d exceeds maximum integer value", typedValue)
+		}
+		return int64(typedValue), nil
+	case float32:
+		return parseFloatAsInt(float64(typedValue))
+	case float64:
+		return parseFloatAsInt(typedValue)
+	case json.Number:
+		return typedValue.Int64()
+	case string:
+		trimmed := strings.TrimSpace(typedValue)
+		if trimmed == "" {
+			return 0, nil
+		}
+		return strconv.ParseInt(trimmed, 10, 64)
+	default:
+		return 0, fmt.Errorf("unsupported type %T", value)
+	}
+}
+
+func parseFloatAsInt(value float64) (int64, error) {
+	if math.IsNaN(value) || math.IsInf(value, 0) {
+		return 0, fmt.Errorf("value must be finite")
+	}
+	if math.Trunc(value) != value {
+		return 0, fmt.Errorf("value must be a whole number")
+	}
+	if value > float64(math.MaxInt64) || value < float64(math.MinInt64) {
+		return 0, fmt.Errorf("value exceeds integer range")
+	}
+
+	return int64(value), nil
+}
+
+func parseOptionalDurationArg(args map[string]any, name string) (types.NullDuration, error) {
+	value, exists := args[name]
+	if !exists || value == nil {
+		return types.NullDuration{}, nil
+	}
+
+	duration, ok := value.(string)
+	if !ok {
+		return types.NullDuration{}, &RunError{
+			Type:    errTypeParameterValidation,
+			Message: fmt.Sprintf("%s must be a duration string", name),
+		}
+	}
+
+	duration = strings.TrimSpace(duration)
+	if duration == "" {
+		return types.NullDuration{}, nil
+	}
+
+	parsed, err := types.ParseExtendedDuration(duration)
+	if err != nil {
+		return types.NullDuration{}, &RunError{
+			Type:    errTypeParameterValidation,
+			Message: fmt.Sprintf("invalid duration format: %s", duration),
+			Cause:   err,
+		}
+	}
+
+	return types.NullDurationFrom(parsed), nil
 }
 
 // RunResult contains the result of a k6 test execution.
@@ -213,7 +342,7 @@ func validateRunInput(ctx context.Context, script string, options *RunOptions) e
 		logger.WarnContext(ctx, "Script content validation failed",
 			slog.String("error", err.Error()))
 		return &RunError{
-			Type:    "INPUT_VALIDATION",
+			Type:    errTypeInputValidation,
 			Message: "script validation failed",
 			Cause:   err,
 		}
@@ -248,23 +377,16 @@ func validateRunOptions(options *RunOptions) error {
 // validateVUsAndIterations validates VUs and iterations parameters.
 func validateVUsAndIterations(options *RunOptions) error {
 	// Validate VUs
-	if options.VUs < 0 {
+	if options.VUs.Valid && options.VUs.Int64 < 0 {
 		return &RunError{
-			Type:    "PARAMETER_VALIDATION",
+			Type:    errTypeParameterValidation,
 			Message: "vus cannot be negative",
 		}
 	}
-	if options.VUs > MaxVUs {
-		return &RunError{
-			Type:    "PARAMETER_VALIDATION",
-			Message: fmt.Sprintf("vus cannot exceed %d", MaxVUs),
-		}
-	}
-
 	// Validate iterations
-	if options.Iterations < 0 {
+	if options.Iterations.Valid && options.Iterations.Int64 < 0 {
 		return &RunError{
-			Type:    "PARAMETER_VALIDATION",
+			Type:    errTypeParameterValidation,
 			Message: "iterations cannot be negative",
 		}
 	}
@@ -274,21 +396,14 @@ func validateVUsAndIterations(options *RunOptions) error {
 
 // validateDuration validates the duration parameter.
 func validateDuration(options *RunOptions) error {
-	if options.Duration == "" {
+	if !options.Duration.Valid {
 		return nil
 	}
 
-	duration, err := time.ParseDuration(options.Duration)
-	if err != nil {
-		return &RunError{
-			Type:    "PARAMETER_VALIDATION",
-			Message: fmt.Sprintf("invalid duration format: %s", options.Duration),
-			Cause:   err,
-		}
-	}
+	duration := options.Duration.TimeDuration()
 	if duration > MaxDuration {
 		return &RunError{
-			Type:    "PARAMETER_VALIDATION",
+			Type:    errTypeParameterValidation,
 			Message: fmt.Sprintf("duration cannot exceed %v", MaxDuration),
 		}
 	}
@@ -314,10 +429,10 @@ func executeK6Test(ctx context.Context, scriptPath string, options *RunOptions) 
 		)
 		return &RunResult{
 				Success: false,
-				Error:   "k6 executable not found in PATH",
+				Error:   errMsgK6NotFoundInPath,
 			}, &RunError{
-				Type:    "K6_NOT_FOUND",
-				Message: "k6 executable not found in PATH",
+				Type:    errTypeK6NotFound,
+				Message: errMsgK6NotFoundInPath,
 				Cause:   err,
 			}
 	}
@@ -394,7 +509,7 @@ func executeK6Test(ctx context.Context, scriptPath string, options *RunOptions) 
 					slog.String("error", err.Error()))
 				result.Error = fmt.Sprintf("failed to execute k6: %v", err)
 				return result, &RunError{
-					Type:    "EXECUTION_ERROR",
+					Type:    errTypeExecutionError,
 					Message: "failed to execute k6 command",
 					Cause:   err,
 				}
@@ -409,30 +524,16 @@ func executeK6Test(ctx context.Context, scriptPath string, options *RunOptions) 
 func buildK6Args(scriptPath string, options *RunOptions) []string {
 	args := []string{"run"}
 
-	// Set defaults if options is nil
-	if options == nil {
-		options = &RunOptions{
-			VUs:      DefaultVUs,
-			Duration: DefaultDuration,
+	if options != nil {
+		if options.VUs.Valid && options.VUs.Int64 > 0 {
+			args = append(args, "--vus", strconv.FormatInt(options.VUs.Int64, 10))
 		}
-	}
 
-	// Set VUs (default to 1 if not specified)
-	vus := options.VUs
-	if vus == 0 {
-		vus = DefaultVUs
-	}
-	args = append(args, "--vus", strconv.Itoa(vus))
-
-	// Handle duration vs iterations
-	if options.Iterations > 0 {
-		args = append(args, "--iterations", strconv.Itoa(options.Iterations))
-	} else {
-		duration := options.Duration
-		if duration == "" {
-			duration = DefaultDuration
+		if options.Iterations.Valid && options.Iterations.Int64 > 0 {
+			args = append(args, "--iterations", strconv.FormatInt(options.Iterations.Int64, 10))
+		} else if options.Duration.Valid {
+			args = append(args, "--duration", options.Duration.String())
 		}
-		args = append(args, "--duration", duration)
 	}
 
 	// Add script path
@@ -478,10 +579,19 @@ func sanitizeRunOptions(options *RunOptions) interface{} {
 	}
 
 	return map[string]interface{}{
-		"vus":        options.VUs,
-		"duration":   options.Duration,
-		"iterations": options.Iterations,
+		"vus":        options.VUs.Ptr(),
+		"duration":   nullDurationString(options.Duration),
+		"iterations": options.Iterations.Ptr(),
 	}
+}
+
+func nullDurationString(duration types.NullDuration) *string {
+	if !duration.Valid {
+		return nil
+	}
+
+	value := duration.String()
+	return &value
 }
 
 // generateRunNextSteps provides actionable next steps based on test results
@@ -501,7 +611,9 @@ func generateRunNextSteps(result *RunResult, options *RunOptions) []string {
 			steps = append(steps, "Use network debugging tools to verify target server availability")
 		}
 
-		if options != nil && (options.VUs > 1 || options.Iterations > 1) {
+		if options != nil &&
+			((options.VUs.Valid && options.VUs.Int64 > 1) ||
+				(options.Iterations.Valid && options.Iterations.Int64 > 1)) {
 			steps = append(steps, "Use run_k6_script with 1 VU and 1 iteration to isolate the issue")
 		}
 
@@ -512,7 +624,7 @@ func generateRunNextSteps(result *RunResult, options *RunOptions) []string {
 	steps = append(steps, "Use the metrics data above to analyze test performance and results")
 
 	// Suggest scaling if using minimal configuration
-	if options != nil && options.VUs == 1 && options.Iterations <= 1 {
+	if isMinimalRunOptions(options) {
 		steps = append(steps, "Use run_k6_script with higher VUs or iterations for comprehensive load testing")
 		steps = append(steps, "Use search_k6_docs to learn about advanced testing patterns and scenarios")
 	} else {
@@ -522,4 +634,15 @@ func generateRunNextSteps(result *RunResult, options *RunOptions) []string {
 	steps = append(steps, "Use k6_info to discover additional k6 capabilities and features")
 
 	return steps
+}
+
+func isMinimalRunOptions(options *RunOptions) bool {
+	if options == nil {
+		return true
+	}
+
+	vusMinimal := !options.VUs.Valid || options.VUs.Int64 <= 1
+	iterationsMinimal := !options.Iterations.Valid || options.Iterations.Int64 <= 1
+
+	return vusMinimal && iterationsMinimal
 }

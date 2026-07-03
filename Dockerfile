@@ -1,5 +1,5 @@
 # Build stage
-FROM golang:1.26-alpine@sha256:91eda9776261207ea25fd06b5b7fed8d397dd2c0a283e77f2ab6e91bfa71079d AS builder
+FROM golang:1.26.4-alpine@sha256:3ad57304ad93bbec8548a0437ad9e06a455660655d9af011d58b993f6f615648 AS builder
 
 # Install build dependencies
 RUN apk add --no-cache make bash git
@@ -20,9 +20,13 @@ COPY . .
 RUN make build
 
 # Final stage
-FROM grafana/k6:latest-with-browser@sha256:f07f174bdf5852b3819e55edd0ef0906d3d32d285d4b4750fc763d70a83ee80e
+FROM grafana/k6:latest-with-browser@sha256:4f658fc1b4ff84cbe8897bea0eb7a9035e14e4d5a8e341dc304dcc6ff5e759ce
 
 LABEL io.modelcontextprotocol.server.name="io.github.grafana/mcp-k6"
+
+USER root
+
+RUN apk upgrade --no-cache libcrypto3 libssl3
 
 # Set the working directory (k6 image uses /home/k6)
 WORKDIR /home/k6

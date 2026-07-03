@@ -208,14 +208,14 @@ func validateK6Script(ctx context.Context, script string) (*ValidationResponse, 
 func validateInput(script string) error {
 	if len(script) == 0 {
 		return &ValidationError{
-			Type:    "INPUT_VALIDATION",
+			Type:    errTypeInputValidation,
 			Message: "script content cannot be empty",
 		}
 	}
 
 	if len(script) > MaxScriptSize {
 		return &ValidationError{
-			Type:    "INPUT_VALIDATION",
+			Type:    errTypeInputValidation,
 			Message: fmt.Sprintf("script size exceeds maximum allowed size of %d bytes", MaxScriptSize),
 		}
 	}
@@ -248,10 +248,10 @@ func executeK6Validation(ctx context.Context, scriptPath string) (*ValidationRes
 		)
 		return &ValidationResponse{
 				Valid: false,
-				Error: "k6 executable not found in PATH",
+				Error: errMsgK6NotFoundInPath,
 			}, &ValidationError{
-				Type:    "K6_NOT_FOUND",
-				Message: "k6 executable not found in PATH",
+				Type:    errTypeK6NotFound,
+				Message: errMsgK6NotFoundInPath,
 				Cause:   err,
 			}
 	}
@@ -328,7 +328,7 @@ func executeK6Validation(ctx context.Context, scriptPath string) (*ValidationRes
 	// Other execution errors
 	result.Error = fmt.Sprintf("failed to execute k6: %v", err)
 	return result, &ValidationError{
-		Type:    "EXECUTION_ERROR",
+		Type:    errTypeExecutionError,
 		Message: "failed to execute k6 command",
 		Cause:   err,
 	}
@@ -408,11 +408,11 @@ func createValidationIssueFromError(err error) ValidationIssue {
 // mapErrorTypeToIssueType maps ValidationError types to ValidationIssue types
 func mapErrorTypeToIssueType(errorType string) string {
 	switch errorType {
-	case "INPUT_VALIDATION":
+	case errTypeInputValidation:
 		return "syntax"
 	case "FILE_CREATION", "FILE_PERMISSION", "FILE_WRITE", "FILE_CLOSE":
 		return "system"
-	case "K6_NOT_FOUND", "EXECUTION_ERROR":
+	case errTypeK6NotFound, errTypeExecutionError:
 		return "environment"
 	case "TIMEOUT":
 		return "performance"
@@ -424,9 +424,9 @@ func mapErrorTypeToIssueType(errorType string) string {
 // mapErrorTypeToSeverity maps ValidationError types to severity levels
 func mapErrorTypeToSeverity(errorType string) string {
 	switch errorType {
-	case "K6_NOT_FOUND", "EXECUTION_ERROR":
+	case errTypeK6NotFound, errTypeExecutionError:
 		return "critical"
-	case "INPUT_VALIDATION":
+	case errTypeInputValidation:
 		return "high"
 	case "TIMEOUT":
 		return "medium"
@@ -440,7 +440,7 @@ func mapErrorTypeToSeverity(errorType string) string {
 // getSuggestionForErrorType provides specific suggestions based on error type
 func getSuggestionForErrorType(errorType, message string) string {
 	switch errorType {
-	case "INPUT_VALIDATION":
+	case errTypeInputValidation:
 		if strings.Contains(message, "empty") {
 			return "Provide a valid k6 script with at least an import and default function. " +
 				"Example: import http from 'k6/http'; export default function() { http.get('https://httpbin.org/get'); }"
@@ -449,7 +449,7 @@ func getSuggestionForErrorType(errorType, message string) string {
 			return "Reduce your script size. Consider splitting large scripts into modules or removing unnecessary code."
 		}
 		return "Check your script syntax and ensure it follows k6 script structure"
-	case "K6_NOT_FOUND":
+	case errTypeK6NotFound:
 		return "Install k6 on your system. Visit https://k6.io/docs/getting-started/" +
 			"installation/ for installation instructions."
 	case "TIMEOUT":
