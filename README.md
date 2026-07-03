@@ -9,7 +9,7 @@ An **experimental** MCP (Model Context Protocol) server for k6, written in Go. I
 
 ### Tools
 - **Script Validation**: `validate_script` runs k6 scripts with minimal configuration (1 VU, 1 iteration) and returns actionable errors to help quickly produce correct code.
-- **Test Execution**: `run_script` runs k6 performance tests locally with configurable VUs, duration, stages, and options, and, when possible, extracts insights from the results.
+- **Test Execution**: `run_script` runs k6 performance tests locally with optional VUs, duration, and iteration overrides, and, when possible, extracts insights from the results.
 - **Documentation Browsing**: `list_sections` and `get_documentation` provide structured navigation of the official k6 docs and allow retrieving full markdown for specific sections. Docs are downloaded on first use, cached locally, and automatically kept fresh via periodic staleness checks.
 
 ### Resources
@@ -375,11 +375,9 @@ Run k6 performance tests with configurable parameters.
 
 Parameters:
 - `script` (string, required)
-- `vus` (number, optional)
-- `duration` (string, optional)
-- `iterations` (number, optional)
-- `stages` (object, optional)
-- `options` (object, optional)
+- `vus` (number, optional): Virtual users override. When omitted, script-defined options and k6 defaults are used.
+- `duration` (string, optional): Duration override, max `5m`. When omitted, script-defined options and k6 defaults are used.
+- `iterations` (number, optional): Iterations override. When provided with a positive value, it takes precedence over `duration`.
 
 Returns: `success`, `exit_code`, `stdout`, `stderr`, `error`, `duration`, `metrics`, `summary`
 
@@ -475,7 +473,7 @@ If your editor can't find the mcp-k6 server:
 If k6 tests fail to execute:
 1. Verify k6 is installed: `k6 version`
 2. Check script syntax with the validate tool first
-3. Ensure resources don't exceed limits (50 VUs, 5m duration)
+3. Ensure duration doesn't exceed the 5m limit
 
 ## Contributing
 

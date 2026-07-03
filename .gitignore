@@ -4,6 +4,9 @@
 # Ignore Claude files
 **/*.claude*
 
+# Ignore local editor configs
+.idea/
+
 # Binary
 /mcp-k6
 
