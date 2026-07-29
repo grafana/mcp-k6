@@ -4,7 +4,7 @@ go 1.25.5
 
 require (
 	github.com/grafana/xk6-docs/docs v0.1.0
-	github.com/mark3labs/mcp-go v0.56.0
+	github.com/mark3labs/mcp-go v0.57.0
 	github.com/sirupsen/logrus v1.9.4
 	github.com/spf13/cobra v1.10.2
 	github.com/stretchr/testify v1.11.1
