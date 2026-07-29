@@ -1,0 +1,34 @@
+{
+  "annotations": {
+    "destructiveHint": true,
+    "idempotentHint": false,
+    "openWorldHint": true,
+    "readOnlyHint": false
+  },
+  "description": "Run a k6 test script with configurable parameters. Returns execution results including stdout, stderr, exit code, and raw metrics from k6.",
+  "inputSchema": {
+    "properties": {
+      "duration": {
+        "description": "Test duration (max: '5m'). When omitted, script-defined options and k6 defaults are used. Examples: '30s', '2m', '5m'. Overridden by iterations if specified.",
+        "type": "string"
+      },
+      "iterations": {
+        "description": "Number of iterations per VU (overrides duration). Examples: 1 for single run, 100 for throughput test.",
+        "type": "number"
+      },
+      "script": {
+        "description": "The k6 script content to run (JavaScript/TypeScript). Should be a valid k6 script with proper imports and default function.",
+        "type": "string"
+      },
+      "vus": {
+        "description": "Number of virtual users. When omitted, script-defined options and k6 defaults are used. Examples: 1 for basic test, 10 for moderate load, 100 for stress test.",
+        "type": "number"
+      }
+    },
+    "required": [
+      "script"
+    ],
+    "type": "object"
+  },
+  "name": "run_script"
+}
