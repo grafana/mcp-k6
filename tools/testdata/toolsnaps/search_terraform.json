@@ -1,0 +1,27 @@
+{
+  "annotations": {
+    "destructiveHint": true,
+    "idempotentHint": false,
+    "openWorldHint": true,
+    "readOnlyHint": true,
+    "title": "Search Terraform resources"
+  },
+  "description": "Search for k6 Cloud-related resources in the Grafana Terraform provider. Queries the installed provider schema and filters resources by name.",
+  "inputSchema": {
+    "properties": {
+      "root": {
+        "default": ".",
+        "description": "Root directory of the Terraform project (default: current directory).",
+        "type": "string"
+      },
+      "term": {
+        "default": "k6",
+        "description": "Search term to filter resources by name (default: 'k6'). Case-insensitive.",
+        "type": "string"
+      }
+    },
+    "required": [],
+    "type": "object"
+  },
+  "name": "search_terraform"
+}

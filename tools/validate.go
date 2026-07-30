@@ -27,6 +27,9 @@ var ValidateTool = mcp.NewTool(
 			"Returns detailed validation results with syntax errors, runtime issues, "+
 			"and actionable recommendations for fixing problems.",
 	),
+	mcp.WithTitleAnnotation("Validate k6 script"),
+	mcp.WithReadOnlyHintAnnotation(true),
+	mcp.WithOutputSchema[ValidationResponse](),
 	mcp.WithString(
 		"script",
 		mcp.Required(),
@@ -58,7 +61,7 @@ func validate(ctx context.Context, request mcp.CallToolRequest) (*mcp.CallToolRe
 		return nil, err
 	}
 
-	return mcp.NewToolResultText(string(resultJSON)), nil
+	return mcp.NewToolResultStructured(result, string(resultJSON)), nil
 }
 
 // ValidationResponse contains the result of a k6 script validation.

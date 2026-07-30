@@ -26,6 +26,10 @@ var ListSectionsTool = mcp.NewTool(
 			"Returns compact metadata (no content) to minimize context usage. "+
 			"Use get_documentation to retrieve the full content for a specific section.",
 	),
+	mcp.WithTitleAnnotation("List k6 documentation sections"),
+	mcp.WithReadOnlyHintAnnotation(true),
+	// No output schema: this tool returns either a section tree or, for
+	// version="all", a versions listing, so a single schema does not apply.
 	mcp.WithString(
 		"version",
 		mcp.Description(
@@ -343,5 +347,5 @@ func marshalResponse(ctx context.Context, logger *slog.Logger, v any) (*mcp.Call
 			slog.String("error", err.Error()))
 		return nil, err
 	}
-	return mcp.NewToolResultText(string(data)), nil
+	return mcp.NewToolResultStructured(v, string(data)), nil
 }

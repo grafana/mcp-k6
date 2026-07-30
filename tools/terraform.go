@@ -24,6 +24,10 @@ var SearchTerraformTool = mcp.NewTool(
 		"Search for k6 Cloud-related resources in the Grafana Terraform provider. "+
 			"Queries the installed provider schema and filters resources by name.",
 	),
+	mcp.WithTitleAnnotation("Search Terraform resources"),
+	mcp.WithReadOnlyHintAnnotation(true),
+	// No output schema: the result is a dynamic map of Grafana provider
+	// resource schemas keyed by resource name, not a fixed struct.
 	mcp.WithString(
 		"root",
 		mcp.Description("Root directory of the Terraform project (default: current directory)."),
@@ -95,7 +99,7 @@ func searchTerraform(ctx context.Context, request mcp.CallToolRequest) (*mcp.Cal
 		return mcp.NewToolResultError("Failed to marshal results: " + err.Error()), nil
 	}
 
-	return mcp.NewToolResultText(string(resultJSON)), nil
+	return mcp.NewToolResultStructured(filtered, string(resultJSON)), nil
 }
 
 type tfSchema struct {

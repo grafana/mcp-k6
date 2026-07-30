@@ -1,0 +1,36 @@
+{
+  "annotations": {
+    "destructiveHint": true,
+    "idempotentHint": false,
+    "openWorldHint": true,
+    "readOnlyHint": true,
+    "title": "k6 environment info"
+  },
+  "description": "Get details about the mcp-k6 server, the local k6 binary, and k6 Cloud login status.",
+  "inputSchema": {
+    "properties": {},
+    "required": [],
+    "type": "object"
+  },
+  "name": "info",
+  "outputSchema": {
+    "additionalProperties": false,
+    "properties": {
+      "k6_version": {
+        "type": "string"
+      },
+      "logged_in": {
+        "type": "boolean"
+      },
+      "version": {
+        "type": "string"
+      }
+    },
+    "required": [
+      "version",
+      "k6_version",
+      "logged_in"
+    ],
+    "type": "object"
+  }
+}

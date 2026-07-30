@@ -30,6 +30,9 @@ var RunTool = mcp.NewTool(
 		"Run a k6 test script with configurable parameters. "+
 			"Returns execution results including stdout, stderr, exit code, and raw metrics from k6.",
 	),
+	mcp.WithTitleAnnotation("Run k6 test"),
+	mcp.WithReadOnlyHintAnnotation(false),
+	mcp.WithOutputSchema[RunResult](),
 	mcp.WithString(
 		"script",
 		mcp.Required(),
@@ -89,7 +92,7 @@ func run(ctx context.Context, request mcp.CallToolRequest) (*mcp.CallToolResult,
 		return nil, err
 	}
 
-	return mcp.NewToolResultText(string(resultJSON)), nil
+	return mcp.NewToolResultStructured(result, string(resultJSON)), nil
 }
 
 const (
