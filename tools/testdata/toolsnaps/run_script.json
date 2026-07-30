@@ -3,7 +3,8 @@
     "destructiveHint": true,
     "idempotentHint": false,
     "openWorldHint": true,
-    "readOnlyHint": false
+    "readOnlyHint": false,
+    "title": "Run k6 test"
   },
   "description": "Run a k6 test script with configurable parameters. Returns execution results including stdout, stderr, exit code, and raw metrics from k6.",
   "inputSchema": {
@@ -30,5 +31,49 @@
     ],
     "type": "object"
   },
-  "name": "run_script"
+  "name": "run_script",
+  "outputSchema": {
+    "additionalProperties": false,
+    "properties": {
+      "duration": {
+        "type": "string"
+      },
+      "error": {
+        "type": "string"
+      },
+      "exit_code": {
+        "type": "integer"
+      },
+      "metrics": {
+        "additionalProperties": true,
+        "type": "object"
+      },
+      "next_steps": {
+        "items": {
+          "type": "string"
+        },
+        "type": [
+          "null",
+          "array"
+        ]
+      },
+      "stderr": {
+        "type": "string"
+      },
+      "stdout": {
+        "type": "string"
+      },
+      "success": {
+        "type": "boolean"
+      }
+    },
+    "required": [
+      "success",
+      "exit_code",
+      "stdout",
+      "stderr",
+      "duration"
+    ],
+    "type": "object"
+  }
 }

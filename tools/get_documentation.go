@@ -24,6 +24,9 @@ var GetDocumentationTool = mcp.NewTool(
 			"Supports multiple k6 versions - specify version parameter or defaults to latest. "+
 			"Use this when you need detailed documentation for a specific topic.",
 	),
+	mcp.WithTitleAnnotation("Get k6 documentation"),
+	mcp.WithReadOnlyHintAnnotation(true),
+	mcp.WithOutputSchema[getDocResponse](),
 	mcp.WithString(
 		"slug",
 		mcp.Required(),

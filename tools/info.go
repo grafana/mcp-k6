@@ -19,6 +19,9 @@ import (
 var InfoTool = mcp.NewTool(
 	"info",
 	mcp.WithDescription("Get details about the mcp-k6 server, the local k6 binary, and k6 Cloud login status."),
+	mcp.WithTitleAnnotation("k6 environment info"),
+	mcp.WithReadOnlyHintAnnotation(true),
+	mcp.WithOutputSchema[InfoResponse](),
 )
 
 // RegisterInfoTool registers the info tool with the MCP server.
@@ -83,7 +86,7 @@ func info(ctx context.Context, _ mcp.CallToolRequest) (*mcp.CallToolResult, erro
 		slog.String("k6_version", k6Version),
 		slog.Bool("logged_in", isLoggedIn))
 
-	return mcp.NewToolResultText(string(jsonResponse)), nil
+	return mcp.NewToolResultStructured(response, string(jsonResponse)), nil
 }
 
 // InfoResponse is the response to the info tool.

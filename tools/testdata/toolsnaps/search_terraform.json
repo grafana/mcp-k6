@@ -3,7 +3,8 @@
     "destructiveHint": true,
     "idempotentHint": false,
     "openWorldHint": true,
-    "readOnlyHint": false
+    "readOnlyHint": true,
+    "title": "Search Terraform resources"
   },
   "description": "Search for k6 Cloud-related resources in the Grafana Terraform provider. Queries the installed provider schema and filters resources by name.",
   "inputSchema": {

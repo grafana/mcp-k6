@@ -3,7 +3,8 @@
     "destructiveHint": true,
     "idempotentHint": false,
     "openWorldHint": true,
-    "readOnlyHint": false
+    "readOnlyHint": true,
+    "title": "Validate k6 script"
   },
   "description": "Validate a k6 script by running it with minimal configuration (1 VU, 1 iteration). Returns detailed validation results with syntax errors, runtime issues, and actionable recommendations for fixing problems.",
   "inputSchema": {
@@ -18,5 +19,119 @@
     ],
     "type": "object"
   },
-  "name": "validate_script"
+  "name": "validate_script",
+  "outputSchema": {
+    "additionalProperties": false,
+    "properties": {
+      "duration": {
+        "type": "string"
+      },
+      "error": {
+        "type": "string"
+      },
+      "exit_code": {
+        "type": "integer"
+      },
+      "issues": {
+        "items": {
+          "additionalProperties": false,
+          "properties": {
+            "line_number": {
+              "type": "integer"
+            },
+            "message": {
+              "type": "string"
+            },
+            "severity": {
+              "type": "string"
+            },
+            "suggestion": {
+              "type": "string"
+            },
+            "type": {
+              "type": "string"
+            }
+          },
+          "required": [
+            "type",
+            "severity",
+            "message",
+            "suggestion"
+          ],
+          "type": "object"
+        },
+        "type": [
+          "null",
+          "array"
+        ]
+      },
+      "next_steps": {
+        "items": {
+          "type": "string"
+        },
+        "type": [
+          "null",
+          "array"
+        ]
+      },
+      "recommendations": {
+        "items": {
+          "type": "string"
+        },
+        "type": [
+          "null",
+          "array"
+        ]
+      },
+      "script_url": {
+        "type": "string"
+      },
+      "stderr": {
+        "type": "string"
+      },
+      "stdout": {
+        "type": "string"
+      },
+      "summary": {
+        "additionalProperties": false,
+        "properties": {
+          "description": {
+            "type": "string"
+          },
+          "issue_count": {
+            "type": "integer"
+          },
+          "ready_to_run": {
+            "type": "boolean"
+          },
+          "severity": {
+            "type": "string"
+          },
+          "status": {
+            "type": "string"
+          }
+        },
+        "required": [
+          "status",
+          "description",
+          "issue_count",
+          "severity",
+          "ready_to_run"
+        ],
+        "type": "object"
+      },
+      "valid": {
+        "type": "boolean"
+      }
+    },
+    "required": [
+      "valid",
+      "exit_code",
+      "stdout",
+      "stderr",
+      "duration",
+      "summary"
+    ],
+    "type": "object"
+  }
 }

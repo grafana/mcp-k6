@@ -3,7 +3,8 @@
     "destructiveHint": true,
     "idempotentHint": false,
     "openWorldHint": true,
-    "readOnlyHint": false
+    "readOnlyHint": true,
+    "title": "Get k6 documentation"
   },
   "description": "Retrieves the full markdown content of a specific k6 documentation section. Use the slug from list_sections output (e.g., 'using-k6/scenarios', 'javascript-api/k6-http/request'). Returns the complete markdown content with frontmatter metadata. Supports multiple k6 versions - specify version parameter or defaults to latest. Use this when you need detailed documentation for a specific topic.",
   "inputSchema": {
@@ -22,5 +23,87 @@
     ],
     "type": "object"
   },
-  "name": "get_documentation"
+  "name": "get_documentation",
+  "outputSchema": {
+    "additionalProperties": false,
+    "properties": {
+      "available_versions": {
+        "items": {
+          "type": "string"
+        },
+        "type": [
+          "null",
+          "array"
+        ]
+      },
+      "content": {
+        "type": "string"
+      },
+      "section": {
+        "additionalProperties": false,
+        "properties": {
+          "aliases": {
+            "items": {
+              "type": "string"
+            },
+            "type": [
+              "null",
+              "array"
+            ]
+          },
+          "category": {
+            "type": "string"
+          },
+          "description": {
+            "type": "string"
+          },
+          "hierarchy": {
+            "items": {
+              "type": "string"
+            },
+            "type": [
+              "null",
+              "array"
+            ]
+          },
+          "is_index": {
+            "type": "boolean"
+          },
+          "rel_path": {
+            "type": "string"
+          },
+          "slug": {
+            "type": "string"
+          },
+          "title": {
+            "type": "string"
+          },
+          "weight": {
+            "type": "integer"
+          }
+        },
+        "required": [
+          "slug",
+          "rel_path",
+          "title",
+          "description",
+          "weight",
+          "category",
+          "hierarchy",
+          "is_index"
+        ],
+        "type": "object"
+      },
+      "version": {
+        "type": "string"
+      }
+    },
+    "required": [
+      "section",
+      "content",
+      "version",
+      "available_versions"
+    ],
+    "type": "object"
+  }
 }
