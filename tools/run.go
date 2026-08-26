@@ -428,13 +428,13 @@ func executeK6Test(ctx context.Context, scriptPath string, options *RunOptions) 
 			slog.String("error", err.Error()),
 		)
 		return &RunResult{
-				Success: false,
-				Error:   errMsgK6NotFoundInPath,
-			}, &RunError{
-				Type:    errTypeK6NotFound,
-				Message: errMsgK6NotFoundInPath,
-				Cause:   err,
-			}
+			Success: false,
+			Error:   errMsgK6NotFoundInPath,
+		}, &RunError{
+			Type:    errTypeK6NotFound,
+			Message: errMsgK6NotFoundInPath,
+			Cause:   err,
+		}
 	}
 	logger.DebugContext(ctx, "Environment validation passed")
 
