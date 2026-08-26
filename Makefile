@@ -7,7 +7,7 @@ COMMIT := $(shell git rev-parse --short HEAD 2>/dev/null || echo local)
 VERSION ?= dev
 XK6_MCP_VERSION ?= v0.0.3
 XK6_VERSION ?= v1.4.12
-E2E_K6_VERSION ?= v2.2.0
+E2E_K6_VERSION ?= v1.7.0
 
 LDFLAGS := -s -w -X github.com/grafana/mcp-k6/internal/buildinfo.Version=$(VERSION) \
 	-X github.com/grafana/mcp-k6/internal/buildinfo.Commit=$(COMMIT) \
