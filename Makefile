@@ -6,7 +6,7 @@ TODAY := $(shell date -u +%Y-%m-%dT%H:%M:%SZ)
 COMMIT := $(shell git rev-parse --short HEAD 2>/dev/null || echo local)
 VERSION ?= dev
 XK6_MCP_VERSION ?= v0.0.3
-XK6_VERSION ?= v1.2.6
+XK6_VERSION ?= v1.4.12
 E2E_K6_VERSION ?= v1.7.0
 
 LDFLAGS := -s -w -X github.com/grafana/mcp-k6/internal/buildinfo.Version=$(VERSION) \
@@ -63,9 +63,9 @@ help: ## List available targets
 	}' $(MAKEFILE_LIST)
 
 test-e2e: build test-e2e-setup ## Run end-to-end MCP tests
-	@MCP_K6_BIN=$(CURDIR)/mcp-k6 e2e/k6 run --vus 1 --iterations 1 --no-usage-report --no-summary e2e/tools_test.js
-	@MCP_K6_BIN=$(CURDIR)/mcp-k6 e2e/k6 run --vus 1 --iterations 1 --no-usage-report --no-summary e2e/resources_test.js
-	@MCP_K6_BIN=$(CURDIR)/mcp-k6 e2e/k6 run --vus 1 --iterations 1 --no-usage-report --no-summary e2e/prompts_test.js
+	@MCP_K6_BIN=$(CURDIR)/mcp-k6 e2e/k6 run --vus 1 --iterations 1 --no-usage-report --summary-mode=disabled e2e/tools_test.js
+	@MCP_K6_BIN=$(CURDIR)/mcp-k6 e2e/k6 run --vus 1 --iterations 1 --no-usage-report --summary-mode=disabled e2e/resources_test.js
+	@MCP_K6_BIN=$(CURDIR)/mcp-k6 e2e/k6 run --vus 1 --iterations 1 --no-usage-report --summary-mode=disabled e2e/prompts_test.js
 
 test-e2e-setup: ## Build the xk6-mcp custom k6 binary for e2e tests
 	@command -v xk6 >/dev/null 2>&1 || go install go.k6.io/xk6/cmd/xk6@$(XK6_VERSION)

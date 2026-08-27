@@ -247,13 +247,13 @@ func executeK6Validation(ctx context.Context, scriptPath string) (*ValidationRes
 			slog.String("error", err.Error()),
 		)
 		return &ValidationResponse{
-				Valid: false,
-				Error: errMsgK6NotFoundInPath,
-			}, &ValidationError{
-				Type:    errTypeK6NotFound,
-				Message: errMsgK6NotFoundInPath,
-				Cause:   err,
-			}
+			Valid: false,
+			Error: errMsgK6NotFoundInPath,
+		}, &ValidationError{
+			Type:    errTypeK6NotFound,
+			Message: errMsgK6NotFoundInPath,
+			Cause:   err,
+		}
 	}
 
 	// Prepare k6 command with minimal configuration and additional validation flags

@@ -1,4 +1,4 @@
-# v2.5.0
+# v2.13.1
 # Please don't remove the first line. It uses in CI to determine the golangci version
 version: "2"
 linters:
@@ -128,7 +128,6 @@ issues:
 formatters:
   enable:
     - gofmt
-    - gofumpt
     - goimports
   exclusions:
     generated: lax

@@ -2,6 +2,7 @@ package k6env_test
 
 import (
 	"context"
+	"fmt"
 	"os"
 	"path/filepath"
 	"runtime"
@@ -65,6 +66,33 @@ func TestInfoVersion(t *testing.T) {
 	}
 }
 
+func TestInfoIsLoggedIn(t *testing.T) {
+	t.Parallel()
+
+	for _, tc := range []struct {
+		name  string
+		token string
+		want  bool
+	}{
+		{name: "masked token", token: "adf0********************************************************5f35", want: true},
+		{name: "token not set", token: "<not set>", want: false},
+	} {
+		t.Run(tc.name, func(t *testing.T) {
+			t.Parallel()
+
+			path := createStub(t, t.TempDir(), loginStubContent(tc.token))
+
+			loggedIn, err := (k6env.Info{Path: path}).IsLoggedIn(context.Background())
+			if err != nil {
+				t.Fatalf("IsLoggedIn returned error: %v", err)
+			}
+			if loggedIn != tc.want {
+				t.Fatalf("IsLoggedIn = %t, want %t", loggedIn, tc.want)
+			}
+		})
+	}
+}
+
 func createStub(t *testing.T, dir, content string) string {
 	t.Helper()
 	var filename string
@@ -102,4 +130,12 @@ func versionStubContent() string {
 	}
 
 	return "#!/bin/sh\nif [ \"$1\" = \"version\" ]; then\n  echo \"k6 v0.0.0-test\"\n  exit 0\nfi\necho \"unexpected args\" 1>&2\nexit 1\n"
+}
+
+func loginStubContent(token string) string {
+	if runtime.GOOS == "windows" {
+		return fmt.Sprintf("@echo off\necho   token: %s\n", token)
+	}
+
+	return fmt.Sprintf("#!/bin/sh\nprintf '  token: %%s\\n' %q\n", token)
 }
