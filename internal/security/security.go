@@ -289,10 +289,53 @@ func dangerousPatternCatalog() map[string]PatternInfo {
 	}
 }
 
+// containsDangerousPattern reports whether content contains pattern as a
+// standalone token rather than as the suffix of a longer identifier.
+//
+// A raw substring match over-matches: the pattern "Function(" would match a
+// user-defined call such as buildRequestFunction(). To avoid that, a match only
+// counts when the character immediately preceding it is not an identifier
+// character, so "Function(" matches the Function constructor but not
+// "...Function(". Patterns that begin with a non-identifier character (for
+// example "require('fs')") are unaffected by the boundary check.
+func containsDangerousPattern(content, pattern string) bool {
+	for offset := 0; ; {
+		idx := strings.Index(content[offset:], pattern)
+		if idx < 0 {
+			return false
+		}
+
+		start := offset + idx
+		if start == 0 || !isIdentifierChar(content[start-1]) {
+			return true
+		}
+
+		offset = start + 1
+	}
+}
+
+// isIdentifierChar reports whether b can appear within a JavaScript identifier.
+// Only ASCII identifier characters are recognised; any other byte (including the
+// bytes of a multibyte rune) is treated as a boundary.
+func isIdentifierChar(b byte) bool {
+	switch {
+	case b >= 'a' && b <= 'z':
+		return true
+	case b >= 'A' && b <= 'Z':
+		return true
+	case b >= '0' && b <= '9':
+		return true
+	case b == '_' || b == '$':
+		return true
+	default:
+		return false
+	}
+}
+
 // checkDangerousPatternsWithSuggestions scans for dangerous patterns and provides corrections
 func checkDangerousPatternsWithSuggestions(ctx context.Context, content string) error {
 	for pattern, info := range dangerousPatternCatalog() {
-		if strings.Contains(content, pattern) {
+		if containsDangerousPattern(content, pattern) {
 			err := &Error{
 				Type: "DANGEROUS_PATTERN",
 				Message: fmt.Sprintf(
