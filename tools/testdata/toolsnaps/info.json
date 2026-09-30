@@ -1,0 +1,15 @@
+{
+  "annotations": {
+    "destructiveHint": true,
+    "idempotentHint": false,
+    "openWorldHint": true,
+    "readOnlyHint": false
+  },
+  "description": "Get details about the mcp-k6 server, the local k6 binary, and k6 Cloud login status.",
+  "inputSchema": {
+    "properties": {},
+    "required": [],
+    "type": "object"
+  },
+  "name": "info"
+}
