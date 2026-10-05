@@ -15,7 +15,7 @@ LDFLAGS := -s -w -X github.com/grafana/mcp-k6/internal/buildinfo.Version=$(VERSI
 
 CMD_PACKAGES := $(shell go list ./cmd/...)
 
-.PHONY: run install build release clean help list test test-unit tests test-all test-e2e test-e2e-setup vet reviewable
+.PHONY: run install build release clean help list test test-unit tests test-all test-e2e test-e2e-setup evals vet reviewable
 
 run: ## Run the mcp-k6 server
 	@go run ./cmd/mcp-k6
@@ -70,5 +70,8 @@ test-e2e: build test-e2e-setup ## Run end-to-end MCP tests
 test-e2e-setup: ## Build the xk6-mcp custom k6 binary for e2e tests
 	@command -v xk6 >/dev/null 2>&1 || go install go.k6.io/xk6/cmd/xk6@$(XK6_VERSION)
 	@test -f e2e/k6 || xk6 build --k6-version $(E2E_K6_VERSION) --with github.com/dgzlopes/xk6-mcp@$(XK6_MCP_VERSION) --output e2e/k6
+
+evals: ## Run LLM eval suite (requires API keys)
+	@cd tests && uv sync --all-groups && uv run pytest
 
 list: help ## Alias for help
