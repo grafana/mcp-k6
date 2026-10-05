@@ -34,7 +34,11 @@ jobs:
 
   test:
     name: Test Go Code
-    runs-on: ubuntu-latest
+    strategy:
+      fail-fast: false
+      matrix:
+        os: [ubuntu-latest, windows-latest]
+    runs-on: ${{ matrix.os }}
     steps:
       - name: Checkout
         uses: actions/checkout@df4cb1c069e1874edd31b4311f1884172cec0e10 # v6
@@ -48,7 +52,7 @@ jobs:
           cache: false
 
       - name: Test
-        run: make test-unit
+        run: go test ./...
 
   e2e:
     name: E2E MCP Tests
