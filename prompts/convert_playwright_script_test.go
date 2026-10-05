@@ -103,7 +103,7 @@ func assertNoLeak(t *testing.T, cases []leakCase) {
 		t.Run(tc.name, func(t *testing.T) {
 			response, _ := callConvert(t, tc.arg)
 			if strings.Contains(response, secretMarker) {
-				t.Fatalf("file outside the working directory was disclosed for argument %q", tc.arg)
+				t.Fatalf("secret file was disclosed for argument %q", tc.arg)
 			}
 		})
 	}
@@ -163,5 +163,88 @@ func TestConvertPlaywrightScriptDoesNotFollowSymlinksOutsideWorkingDirectory(t *
 		{"at relative file symlink", "@rel-link.js"},
 		{"at absolute directory symlink", "@" + viaDir("outside-dir")},
 		{"at relative directory symlink", "@" + viaDir("rel-dir-link")},
+	})
+}
+
+//nolint:paralleltest // Uses t.Chdir and t.Setenv, which are incompatible with t.Parallel.
+func TestConvertPlaywrightScriptOnlyReadsScriptFiles(t *testing.T) {
+	l := newFileAccessLayout(t)
+
+	// Simulate an MCP client that launches the server from the user's home
+	// directory: credentials then live inside the working directory, so only
+	// the extension filter keeps them from being read.
+	t.Setenv("HOME", l.work)
+	t.Setenv("USERPROFILE", l.work)
+
+	secret := []byte("-----BEGIN KEY----- " + secretMarker + "\n")
+	sshDir := filepath.Join(l.work, ".ssh")
+	require.NoError(t, os.MkdirAll(sshDir, 0o700))
+	for _, name := range []string{
+		filepath.Join(".ssh", "id_rsa"),
+		".env",
+		"notes.txt",
+		"config.json",
+		"script.js.bak",
+	} {
+		require.NoError(t, os.WriteFile(filepath.Join(l.work, name), secret, 0o600))
+	}
+
+	t.Run("rejects non-script files", func(t *testing.T) {
+		cases := []leakCase{
+			{"at file without extension", "@" + filepath.Join(".ssh", "id_rsa")},
+			{"at home file without extension", "@" + filepath.Join("~", ".ssh", "id_rsa")},
+			{"at dotfile", "@.env"},
+			{"at txt file", "@notes.txt"},
+			{"at json file", "@config.json"},
+			{"at script extension not last", "@script.js.bak"},
+			{"bare file without extension", filepath.Join(".ssh", "id_rsa")},
+			{"bare home file without extension", filepath.Join("~", ".ssh", "id_rsa")},
+			{"bare txt file", "notes.txt"},
+		}
+		if runtime.GOOS == "windows" {
+			cases = append(cases,
+				leakCase{"at txt file default data stream", "@notes.txt::$DATA"},
+			)
+		}
+		assertNoLeak(t, cases)
+	})
+
+	t.Run("rejects script-named symlinks to non-script files", func(t *testing.T) {
+		links := map[string]string{
+			"key.js":     filepath.Join(".ssh", "id_rsa"),
+			"env.ts":     ".env",
+			"chain-1.js": "chain-2.js",
+			"chain-2.js": filepath.Join(".ssh", "id_rsa"),
+		}
+		for name, target := range links {
+			if err := os.Symlink(target, filepath.Join(l.work, name)); err != nil {
+				t.Skipf("cannot create symlinks on this system: %v", err)
+			}
+		}
+
+		assertNoLeak(t, []leakCase{
+			{"at symlink to key", "@key.js"},
+			{"at symlink to dotfile", "@env.ts"},
+			{"at symlink chain to key", "@chain-1.js"},
+			{"bare symlink to key", "key.js"},
+		})
+	})
+
+	t.Run("reads script files", func(t *testing.T) {
+		for _, name := range []string{
+			"script.js", "script.mjs", "script.cjs",
+			"script.ts", "script.mts", "script.cts",
+			"UPPER.JS",
+		} {
+			t.Run(name, func(t *testing.T) {
+				marker := "SCRIPT_CONTENT_" + strings.ReplaceAll(name, ".", "_")
+				require.NoError(t, os.WriteFile(filepath.Join(l.work, name),
+					[]byte("const s = '"+marker+"';\n"), 0o600))
+
+				response, err := callConvert(t, "@"+name)
+				require.NoError(t, err)
+				require.Contains(t, response, marker, "script file %q was not read", name)
+			})
+		}
 	})
 }
