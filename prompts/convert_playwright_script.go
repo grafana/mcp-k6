@@ -3,7 +3,9 @@ package prompts
 
 import (
 	"context"
+	"errors"
 	"fmt"
+	"io"
 	"log/slog"
 	"os"
 	"path/filepath"
@@ -23,7 +25,10 @@ var ConvertPlaywrightScriptPrompt = mcp.NewPrompt(
 	mcp.WithArgument(
 		"playwright_script",
 		mcp.ArgumentDescription("The Playwright script to convert (JavaScript or TypeScript) "+
-			"into a k6 browser script. Accepts raw text or a file path."),
+			"into a k6 browser script. Accepts the script text, or a file reference prefixed with '@' "+
+			"(for example '@tests/login.spec.ts'). File references must point to a "+
+			".js, .mjs, .cjs, .ts, .mts or .cts file inside the server's working directory; "+
+			"'~' expands to the home directory."),
 	),
 )
 
@@ -113,96 +118,119 @@ func resolvePlaywrightScriptArgument(ctx context.Context, value string) (string,
 		return "", nil
 	}
 
-	if strings.HasPrefix(trimmed, "@") {
-		path := strings.TrimSpace(strings.TrimPrefix(trimmed, "@"))
-		if path == "" {
-			return "", fmt.Errorf("file reference prefixed with '@' must include a path")
-		}
-		return readPlaywrightScriptFromFile(ctx, path)
+	if !strings.HasPrefix(trimmed, "@") {
+		return value, nil
 	}
 
-	if !strings.ContainsAny(trimmed, "\r\n") {
-		script, ok, err := tryReadPlaywrightScriptFromFile(ctx, trimmed)
-		if err != nil {
-			return "", err
-		}
-		if ok {
-			return script, nil
-		}
+	path := strings.TrimSpace(strings.TrimPrefix(trimmed, "@"))
+	if path == "" {
+		return "", fmt.Errorf("file reference prefixed with '@' must include a path")
 	}
 
-	return value, nil
+	return readScriptFileInWorkingDirectory(ctx, path)
 }
 
+// allowedScriptExtensions lists the file extensions that may be read through
+// an '@' file reference. Restricting reads to script files keeps credentials
+// and other secrets out of reach when the working directory contains them,
+// for example when the server runs from the user's home directory.
+//
+//nolint:gochecknoglobals // Read-only lookup table.
+var allowedScriptExtensions = map[string]bool{
+	".js": true, ".mjs": true, ".cjs": true,
+	".ts": true, ".mts": true, ".cts": true,
+}
+
+func hasScriptExtension(path string) bool {
+	return allowedScriptExtensions[strings.ToLower(filepath.Ext(path))]
+}
+
+// readScriptFileInWorkingDirectory reads a script file referenced by path.
+// The file must be inside the current working directory, and both the
+// requested name and the name of the final symlink target must have a script
+// extension.
+//
+// Containment is enforced by os.Root, which resolves the path relative to a
+// handle on the working directory and refuses to leave it, including through
+// symlinks.
+//
 //nolint:forbidigo // Controlled file access required for prompt inputs.
-func readPlaywrightScriptFromFile(ctx context.Context, path string) (string, error) {
-	normalizedPath, err := normalizeFilePath(path)
-	if err != nil {
-		return "", fmt.Errorf("invalid file path %q: %w", path, err)
-	}
-
-	// Resolve to absolute path and ensure it doesn't escape working directory
-	absPath, err := filepath.Abs(normalizedPath)
-	if err != nil {
-		return "", fmt.Errorf("failed to resolve absolute path for %q: %w", normalizedPath, err)
-	}
-
-	// Get current working directory
+func readScriptFileInWorkingDirectory(ctx context.Context, path string) (string, error) {
 	cwd, err := os.Getwd()
 	if err != nil {
 		return "", fmt.Errorf("failed to get current working directory: %w", err)
 	}
 
-	// Ensure the resolved path is within allowed directory, to prevent path traversal attacks
-	if !strings.HasPrefix(absPath, cwd+string(filepath.Separator)) && absPath != cwd {
-		return "", fmt.Errorf("file path must be within current working directory")
+	rel, err := workingDirectoryRelativePath(cwd, path)
+	if err != nil {
+		return "", fmt.Errorf("invalid file reference %q: %w", path, err)
 	}
 
-	// #nosec G304 -- normalizedPath is sanitized before file access.
-	data, err := os.ReadFile(normalizedPath)
+	if !hasScriptExtension(rel) {
+		return "", fmt.Errorf("invalid file reference %q: %w", path, errNotAScriptFile)
+	}
+
+	root, err := os.OpenRoot(cwd)
 	if err != nil {
-		return "", fmt.Errorf("failed to read Playwright script file %q: %w", normalizedPath, err)
+		return "", fmt.Errorf("failed to open current working directory: %w", err)
+	}
+	defer func() { _ = root.Close() }()
+
+	// Opening through the root first means paths that escape the working
+	// directory always fail here, regardless of what they point to.
+	file, err := root.Open(rel)
+	if err != nil {
+		return "", fmt.Errorf("failed to read Playwright script file %q: %w", path, err)
+	}
+	defer func() { _ = file.Close() }()
+
+	// Check the extension of the final symlink target as well, so that a
+	// script-named symlink cannot be used to read another file inside the
+	// working directory. Containment does not depend on this check.
+	resolved, err := filepath.EvalSymlinks(filepath.Join(cwd, rel))
+	if err != nil {
+		return "", fmt.Errorf("failed to read Playwright script file %q: %w", path, err)
+	}
+	if !hasScriptExtension(resolved) {
+		return "", fmt.Errorf("invalid file reference %q: %w", path, errNotAScriptFile)
+	}
+
+	data, err := io.ReadAll(file)
+	if err != nil {
+		return "", fmt.Errorf("failed to read Playwright script file %q: %w", path, err)
 	}
 
 	logger := logging.LoggerFromContext(ctx)
 	logger.DebugContext(ctx, "Loaded Playwright script from file",
-		slog.String("path", normalizedPath),
+		slog.String("path", rel),
 		slog.Int("bytes", len(data)))
 
 	return string(data), nil
 }
 
-//nolint:forbidigo
-func tryReadPlaywrightScriptFromFile(ctx context.Context, candidate string) (string, bool, error) {
-	normalizedPath, err := normalizeFilePath(candidate)
+var (
+	errOutsideWorkingDirectory = errors.New("file path must be within current working directory")
+	errNotAScriptFile          = errors.New("file must have a .js, .mjs, .cjs, .ts, .mts or .cts extension")
+)
+
+// workingDirectoryRelativePath normalizes path and converts absolute paths to
+// paths relative to cwd, because os.Root only accepts relative names. Whether
+// the result stays inside cwd is enforced by os.Root when the file is opened.
+func workingDirectoryRelativePath(cwd, path string) (string, error) {
+	normalized, err := normalizeFilePath(path)
 	if err != nil {
-		return "", false, fmt.Errorf("invalid candidate path %q: %w", candidate, err)
+		return "", err
 	}
 
-	info, err := os.Stat(normalizedPath)
-	if err != nil {
-		if os.IsNotExist(err) {
-			return "", false, nil
+	if filepath.IsAbs(normalized) {
+		rel, err := filepath.Rel(cwd, normalized)
+		if err != nil {
+			return "", errOutsideWorkingDirectory
 		}
-		return "", false, fmt.Errorf("failed to inspect candidate file %q: %w", normalizedPath, err)
+		normalized = rel
 	}
 
-	if info.IsDir() {
-		return "", false, nil
-	}
-
-	// #nosec G304 -- normalizedPath is sanitized before file access.
-	data, err := os.ReadFile(normalizedPath)
-	if err != nil {
-		return "", false, fmt.Errorf("failed to read candidate script file %q: %w", normalizedPath, err)
-	}
-
-	logger := logging.LoggerFromContext(ctx)
-	logger.DebugContext(ctx, "Loaded Playwright script from implicit file reference",
-		slog.String("path", normalizedPath),
-		slog.Int("bytes", len(data)))
-
-	return string(data), true, nil
+	return normalized, nil
 }
 
 func normalizeFilePath(path string) (string, error) {
@@ -213,13 +241,14 @@ func normalizeFilePath(path string) (string, error) {
 		return "", fmt.Errorf("file path cannot be empty")
 	}
 
-	if strings.HasPrefix(trimmed, "~") {
+	//nolint:forbidigo // os.IsPathSeparator is a pure helper and knows the platform's separators.
+	if trimmed == "~" || (len(trimmed) > 1 && trimmed[0] == '~' && os.IsPathSeparator(trimmed[1])) {
 		home, err := resolveHomeDir()
 		if err != nil {
 			return "", fmt.Errorf("unable to resolve home directory: %w", err)
 		}
 
-		trimmed = filepath.Join(home, strings.TrimPrefix(trimmed, "~"))
+		trimmed = filepath.Join(home, trimmed[1:])
 	}
 
 	return filepath.Clean(trimmed), nil

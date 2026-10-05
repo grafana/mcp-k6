@@ -248,3 +248,62 @@ func TestConvertPlaywrightScriptOnlyReadsScriptFiles(t *testing.T) {
 		}
 	})
 }
+
+//nolint:paralleltest // Uses t.Chdir and t.Setenv, which are incompatible with t.Parallel.
+func TestConvertPlaywrightScriptReadsFilesInsideWorkingDirectory(t *testing.T) {
+	l := newFileAccessLayout(t)
+
+	const marker = "SAMPLE_SPEC_CONTENT_4d1e"
+	content := []byte("const { test } = require('@playwright/test'); // " + marker + "\n")
+	nested := filepath.Join("sub", "dir", "sample.spec.js")
+	require.NoError(t, os.MkdirAll(filepath.Join(l.work, "sub", "dir"), 0o700))
+	require.NoError(t, os.WriteFile(filepath.Join(l.work, "sample.spec.js"), content, 0o600))
+	require.NoError(t, os.WriteFile(filepath.Join(l.work, nested), content, 0o600))
+
+	cases := []leakCase{
+		{"relative path", "@sample.spec.js"},
+		{"dot relative path", "@." + string(filepath.Separator) + "sample.spec.js"},
+		{"nested path", "@" + nested},
+		{"traversal that stays inside", "@" + filepath.Join("sub", "..", "sample.spec.js")},
+		{"absolute path", "@" + filepath.Join(l.work, "sample.spec.js")},
+		{"home path", "@" + filepath.Join("~", "work", "sample.spec.js")},
+		{"quoted path", "@\"sample.spec.js\""},
+		{"whitespace around path", "  @ sample.spec.js  "},
+	}
+	if runtime.GOOS == "windows" {
+		cases = append(cases,
+			leakCase{"forward slash nested path", "@sub/dir/sample.spec.js"},
+		)
+	}
+
+	if err := os.Symlink("sample.spec.js", filepath.Join(l.work, "link.spec.js")); err == nil {
+		cases = append(cases, leakCase{"relative symlink inside", "@link.spec.js"})
+	}
+
+	for _, tc := range cases {
+		t.Run(tc.name, func(t *testing.T) {
+			response, err := callConvert(t, tc.arg)
+			require.NoError(t, err)
+			require.Contains(t, response, marker, "file was not read for argument %q", tc.arg)
+		})
+	}
+
+	t.Run("inline script text is used as is", func(t *testing.T) {
+		script := "const { test } = require('@playwright/test');\ntest('x', async () => {});"
+		response, err := callConvert(t, script)
+		require.NoError(t, err)
+		require.Contains(t, response, "test('x', async () =\\u003e {});")
+	})
+
+	t.Run("bare path is used as script text", func(t *testing.T) {
+		response, err := callConvert(t, "sample.spec.js")
+		require.NoError(t, err)
+		require.NotContains(t, response, marker, "bare path must not be read as a file")
+		require.Contains(t, response, "## USER SCRIPT\\nsample.spec.js\\n")
+	})
+
+	t.Run("missing file is an error", func(t *testing.T) {
+		_, err := callConvert(t, "@missing.spec.js")
+		require.Error(t, err)
+	})
+}
