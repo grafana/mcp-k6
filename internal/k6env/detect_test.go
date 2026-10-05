@@ -6,6 +6,7 @@ import (
 	"os"
 	"path/filepath"
 	"runtime"
+	"strings"
 	"testing"
 
 	"github.com/grafana/mcp-k6/internal/k6env"
@@ -134,7 +135,9 @@ func versionStubContent() string {
 
 func loginStubContent(token string) string {
 	if runtime.GOOS == "windows" {
-		return fmt.Sprintf("@echo off\necho   token: %s\n", token)
+		// Escape cmd.exe metacharacters, e.g. the redirections in "<not set>".
+		escaped := strings.NewReplacer("^", "^^", "<", "^<", ">", "^>", "&", "^&", "|", "^|").Replace(token)
+		return fmt.Sprintf("@echo off\necho   token: %s\n", escaped)
 	}
 
 	return fmt.Sprintf("#!/bin/sh\nprintf '  token: %%s\\n' %q\n", token)

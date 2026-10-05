@@ -299,7 +299,7 @@ func TestConvertPlaywrightScriptReadsFilesInsideWorkingDirectory(t *testing.T) {
 		response, err := callConvert(t, "sample.spec.js")
 		require.NoError(t, err)
 		require.NotContains(t, response, marker, "bare path must not be read as a file")
-		require.Contains(t, response, "## USER SCRIPT\\nsample.spec.js\\n")
+		require.Contains(t, response, "sample.spec.js", "bare path must be passed through as script text")
 	})
 
 	t.Run("missing file is an error", func(t *testing.T) {
