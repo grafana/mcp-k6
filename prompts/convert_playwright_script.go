@@ -131,9 +131,8 @@ func resolvePlaywrightScriptArgument(ctx context.Context, value string) (string,
 }
 
 // allowedScriptExtensions lists the file extensions that may be read through
-// an '@' file reference. Restricting reads to script files keeps credentials
-// and other secrets out of reach when the working directory contains them,
-// for example when the server runs from the user's home directory.
+// an '@' file reference. The prompt converts Playwright scripts, so there is no
+// reason to read anything else.
 //
 //nolint:gochecknoglobals // Read-only lookup table.
 var allowedScriptExtensions = map[string]bool{
@@ -159,6 +158,10 @@ func readScriptFileInWorkingDirectory(ctx context.Context, path string) (string,
 	cwd, err := os.Getwd()
 	if err != nil {
 		return "", fmt.Errorf("failed to get current working directory: %w", err)
+	}
+
+	if isHomeDirectory(cwd) {
+		return "", errWorkingDirectoryIsHome
 	}
 
 	rel, err := workingDirectoryRelativePath(cwd, path)
@@ -209,9 +212,36 @@ func readScriptFileInWorkingDirectory(ctx context.Context, path string) (string,
 }
 
 var (
+	errWorkingDirectoryIsHome = errors.New("file references are not supported when the server runs " +
+		"from the home directory; start the server from a project directory or provide the script text directly")
 	errOutsideWorkingDirectory = errors.New("file path must be within current working directory")
 	errNotAScriptFile          = errors.New("file must have a .js, .mjs, .cjs, .ts, .mts or .cts extension")
 )
+
+// isHomeDirectory reports whether dir is the user's home directory. Some MCP
+// clients launch servers from the home directory, which would put everything in
+// it within reach of file references. os.SameFile also matches the home
+// directory through symlinks and, on Windows, with different letter case.
+//
+//nolint:forbidigo // Controlled file access required to compare directories.
+func isHomeDirectory(dir string) bool {
+	home, err := resolveHomeDir()
+	if err != nil {
+		return false
+	}
+
+	homeInfo, err := os.Stat(home)
+	if err != nil {
+		return false
+	}
+
+	dirInfo, err := os.Stat(dir)
+	if err != nil {
+		return false
+	}
+
+	return os.SameFile(homeInfo, dirInfo)
+}
 
 // workingDirectoryRelativePath normalizes path and converts absolute paths to
 // paths relative to cwd, because os.Root only accepts relative names. Whether

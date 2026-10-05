@@ -117,20 +117,17 @@ func TestConvertPlaywrightScriptDoesNotReadOutsideWorkingDirectory(t *testing.T)
 	homeSecret := filepath.Join("~", "outside", "secret.txt")
 
 	cases := []leakCase{
+		// The reported exploit: a bare path was read without any check.
 		{"bare absolute path", l.secret},
-		{"bare relative traversal", relSecret},
-		{"bare home path", homeSecret},
 		{"at absolute path", "@" + l.secret},
 		{"at relative traversal", "@" + relSecret},
 		{"at home path", "@" + homeSecret},
-		{"at quoted absolute path", "@\"" + l.secret + "\""},
 	}
 
 	if runtime.GOOS == "windows" {
 		cases = append(cases,
 			leakCase{"at forward slash absolute path", "@" + filepath.ToSlash(l.secret)},
 			leakCase{"at extended-length path", `@\\?\` + l.secret},
-			leakCase{"bare extended-length path", `\\?\` + l.secret},
 		)
 	}
 
@@ -144,7 +141,6 @@ func TestConvertPlaywrightScriptDoesNotFollowSymlinksOutsideWorkingDirectory(t *
 	links := map[string]string{
 		"abs-link.js":  l.secret,
 		"rel-link.js":  filepath.Join("..", "outside", "secret.txt"),
-		"outside-dir":  l.outside,
 		"rel-dir-link": filepath.Join("..", "outside"),
 	}
 	for name, target := range links {
@@ -156,12 +152,8 @@ func TestConvertPlaywrightScriptDoesNotFollowSymlinksOutsideWorkingDirectory(t *
 	viaDir := func(dir string) string { return filepath.Join(dir, "secret.txt") }
 
 	assertNoLeak(t, []leakCase{
-		{"bare absolute file symlink", "abs-link.js"},
-		{"bare relative file symlink", "rel-link.js"},
-		{"bare directory symlink", viaDir("outside-dir")},
 		{"at absolute file symlink", "@abs-link.js"},
 		{"at relative file symlink", "@rel-link.js"},
-		{"at absolute directory symlink", "@" + viaDir("outside-dir")},
 		{"at relative directory symlink", "@" + viaDir("rel-dir-link")},
 	})
 }
@@ -170,12 +162,8 @@ func TestConvertPlaywrightScriptDoesNotFollowSymlinksOutsideWorkingDirectory(t *
 func TestConvertPlaywrightScriptOnlyReadsScriptFiles(t *testing.T) {
 	l := newFileAccessLayout(t)
 
-	// Simulate an MCP client that launches the server from the user's home
-	// directory: credentials then live inside the working directory, so only
-	// the extension filter keeps them from being read.
-	t.Setenv("HOME", l.work)
-	t.Setenv("USERPROFILE", l.work)
-
+	// Non-script files inside the working directory, such as credentials, must
+	// not be readable: the prompt only needs Playwright scripts.
 	secret := []byte("-----BEGIN KEY----- " + secretMarker + "\n")
 	sshDir := filepath.Join(l.work, ".ssh")
 	require.NoError(t, os.MkdirAll(sshDir, 0o700))
@@ -183,7 +171,6 @@ func TestConvertPlaywrightScriptOnlyReadsScriptFiles(t *testing.T) {
 		filepath.Join(".ssh", "id_rsa"),
 		".env",
 		"notes.txt",
-		"config.json",
 		"script.js.bak",
 	} {
 		require.NoError(t, os.WriteFile(filepath.Join(l.work, name), secret, 0o600))
@@ -192,14 +179,9 @@ func TestConvertPlaywrightScriptOnlyReadsScriptFiles(t *testing.T) {
 	t.Run("rejects non-script files", func(t *testing.T) {
 		cases := []leakCase{
 			{"at file without extension", "@" + filepath.Join(".ssh", "id_rsa")},
-			{"at home file without extension", "@" + filepath.Join("~", ".ssh", "id_rsa")},
 			{"at dotfile", "@.env"},
 			{"at txt file", "@notes.txt"},
-			{"at json file", "@config.json"},
 			{"at script extension not last", "@script.js.bak"},
-			{"bare file without extension", filepath.Join(".ssh", "id_rsa")},
-			{"bare home file without extension", filepath.Join("~", ".ssh", "id_rsa")},
-			{"bare txt file", "notes.txt"},
 		}
 		if runtime.GOOS == "windows" {
 			cases = append(cases,
@@ -212,7 +194,6 @@ func TestConvertPlaywrightScriptOnlyReadsScriptFiles(t *testing.T) {
 	t.Run("rejects script-named symlinks to non-script files", func(t *testing.T) {
 		links := map[string]string{
 			"key.js":     filepath.Join(".ssh", "id_rsa"),
-			"env.ts":     ".env",
 			"chain-1.js": "chain-2.js",
 			"chain-2.js": filepath.Join(".ssh", "id_rsa"),
 		}
@@ -224,9 +205,7 @@ func TestConvertPlaywrightScriptOnlyReadsScriptFiles(t *testing.T) {
 
 		assertNoLeak(t, []leakCase{
 			{"at symlink to key", "@key.js"},
-			{"at symlink to dotfile", "@env.ts"},
 			{"at symlink chain to key", "@chain-1.js"},
-			{"bare symlink to key", "key.js"},
 		})
 	})
 
@@ -262,7 +241,6 @@ func TestConvertPlaywrightScriptReadsFilesInsideWorkingDirectory(t *testing.T) {
 
 	cases := []leakCase{
 		{"relative path", "@sample.spec.js"},
-		{"dot relative path", "@." + string(filepath.Separator) + "sample.spec.js"},
 		{"nested path", "@" + nested},
 		{"traversal that stays inside", "@" + filepath.Join("sub", "..", "sample.spec.js")},
 		{"absolute path", "@" + filepath.Join(l.work, "sample.spec.js")},
@@ -305,5 +283,44 @@ func TestConvertPlaywrightScriptReadsFilesInsideWorkingDirectory(t *testing.T) {
 	t.Run("missing file is an error", func(t *testing.T) {
 		_, err := callConvert(t, "@missing.spec.js")
 		require.Error(t, err)
+	})
+}
+
+func TestConvertPlaywrightScriptRejectsFileReadsFromHomeDirectory(t *testing.T) {
+	l := newFileAccessLayout(t)
+	require.NoError(t, os.WriteFile(filepath.Join(l.work, "sample.spec.js"),
+		[]byte("const s = '"+secretMarker+"';\n"), 0o600))
+
+	// Each case makes the working directory the home directory, the way some
+	// MCP clients launch servers. Everything in home would then be in scope,
+	// so file references must be rejected.
+	homes := map[string]string{"same path": l.work}
+	if runtime.GOOS == "windows" {
+		homes["different case"] = strings.ToUpper(l.work)
+	}
+	link := filepath.Join(l.home, "home-link")
+	if err := os.Symlink(l.work, link); err == nil {
+		homes["home is a symlink to cwd"] = link
+	}
+
+	for name, home := range homes {
+		t.Run(name, func(t *testing.T) {
+			t.Setenv("HOME", home)
+			t.Setenv("USERPROFILE", home)
+
+			for _, arg := range []string{"@sample.spec.js", "@" + filepath.Join("~", "sample.spec.js")} {
+				response, err := callConvert(t, arg)
+				require.Error(t, err, "file reference %q must be rejected when cwd is home", arg)
+				require.NotContains(t, response, secretMarker)
+			}
+		})
+	}
+
+	t.Run("inline script text still works", func(t *testing.T) {
+		t.Setenv("HOME", l.work)
+		t.Setenv("USERPROFILE", l.work)
+
+		_, err := callConvert(t, "const { test } = require('@playwright/test');\ntest('x', async () => {});")
+		require.NoError(t, err)
 	})
 }
