@@ -156,12 +156,17 @@ jobs:
             echo "is_stable=false" >> $GITHUB_OUTPUT
           fi
 
-      - name: Build and Push to Docker Hub
-        uses: grafana/shared-workflows/actions/build-push-to-dockerhub@05f46dbfcfffa2b38c50cd11b1f86ec823ebc73e # build-push-to-dockerhub/v0.4.2
+      # Pushes to a GAR staging repo; gar-image-mirror copies the image to docker.io/grafana/mcp-k6.
+      # See https://github.com/grafana/deployment_tools/blob/master/docs/platform/gar-image-mirror.md
+      - name: Build and Push to GAR (mirrored to Docker Hub)
+        uses: grafana/shared-workflows/actions/docker-build-push-image@c66d74df41cf4ed28a90da1d91c263f9d1609a21 # docker-build-push-image/v0.3.4
         with:
           context: .
           file: ./Dockerfile
-          repository: grafana/mcp-k6
+          registries: gar
+          gar-environment: prod
+          gar-repository: dockerhub-mcp-k6-prod-mirror
+          gar-image: mcp-k6
           platforms: linux/amd64,linux/arm64
           tags: |
             ${{ steps.tag.outputs.is_stable == 'true' && 'latest' || '' }}
