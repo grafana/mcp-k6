@@ -379,7 +379,13 @@ Parameters:
 - `duration` (string, optional): Duration override, max `5m`. When omitted, script-defined options and k6 defaults are used.
 - `iterations` (number, optional): Iterations override. When provided with a positive value, it takes precedence over `duration`.
 
-Returns: `success`, `exit_code`, `stdout`, `stderr`, `error`, `duration`, `metrics`, `summary`
+Returns: `success`, `exit_code`, `exit_reason`, `thresholds_failed`, `stdout`, `stderr`, `error`, `warnings`, `duration`, `summary`, `next_steps`
+
+Response highlights:
+- `summary`: Structured end-of-test results captured via `--summary-export`. Contains `metrics` (each with an inferred `type` and the raw k6 `values` such as `avg`, `p(95)`, `count`, `rate`), `thresholds` (one entry per expression with `metric`, `expression`, `passed`) and `checks` (`passes`, `fails`).
+- `thresholds_failed` and `exit_reason`: k6 exits non-zero when a threshold is crossed, so `success` is `false` while `thresholds_failed` is `true` and `summary` is fully populated. `exit_reason` maps known k6 exit codes to labels such as `thresholds_failed`, `script_exception` or `setup_timeout`; unrecognised codes report `unknown`.
+- `stdout`: Truncated to a 4 KiB preview once `summary` is available. `stderr` is never truncated.
+- `warnings`: Set when the summary could not be captured, for example when k6 aborted before the end of the test.
 
 ### list_sections
 
