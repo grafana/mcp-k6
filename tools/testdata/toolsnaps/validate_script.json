@@ -1,0 +1,22 @@
+{
+  "annotations": {
+    "destructiveHint": true,
+    "idempotentHint": false,
+    "openWorldHint": true,
+    "readOnlyHint": false
+  },
+  "description": "Validate a k6 script by running it with minimal configuration (1 VU, 1 iteration). Returns detailed validation results with syntax errors, runtime issues, and actionable recommendations for fixing problems.",
+  "inputSchema": {
+    "properties": {
+      "script": {
+        "description": "The k6 script content to validate (either JavaScript or TypeScript code). Example: 'import http from \"k6/http\"; export default function() { http.get(\"https://httpbin.org/get\"); }'",
+        "type": "string"
+      }
+    },
+    "required": [
+      "script"
+    ],
+    "type": "object"
+  },
+  "name": "validate_script"
+}

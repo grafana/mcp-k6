@@ -1,0 +1,32 @@
+{
+  "annotations": {
+    "destructiveHint": true,
+    "idempotentHint": false,
+    "openWorldHint": true,
+    "readOnlyHint": false
+  },
+  "description": "Lists k6 documentation sections in a hierarchical tree structure. Use this to understand documentation organization and discover related topics. Navigate progressively: start at root, then use root_slug to expand branches. Returns compact metadata (no content) to minimize context usage. Use get_documentation to retrieve the full content for a specific section.",
+  "inputSchema": {
+    "properties": {
+      "category": {
+        "description": "Optional: Filter by top-level category (e.g., 'using-k6', 'javascript-api'). Use without this parameter to see all categories.",
+        "type": "string"
+      },
+      "depth": {
+        "description": "Optional: Depth of hierarchy to return (default: 1, max: 5). Depth counts how many levels of children are included in the tree.",
+        "type": "number"
+      },
+      "root_slug": {
+        "description": "Optional: List the contents under this slug (i.e., its children). Use the slug from a previous list_sections response.",
+        "type": "string"
+      },
+      "version": {
+        "description": "Optional: k6 version to list sections for (e.g., 'v1.4.x', 'v0.57.x'). Defaults to latest version. Use 'all' to see available versions.",
+        "type": "string"
+      }
+    },
+    "required": [],
+    "type": "object"
+  },
+  "name": "list_sections"
+}

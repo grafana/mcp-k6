@@ -1,0 +1,26 @@
+{
+  "annotations": {
+    "destructiveHint": true,
+    "idempotentHint": false,
+    "openWorldHint": true,
+    "readOnlyHint": false
+  },
+  "description": "Retrieves the full markdown content of a specific k6 documentation section. Use the slug from list_sections output (e.g., 'using-k6/scenarios', 'javascript-api/k6-http/request'). Returns the complete markdown content with frontmatter metadata. Supports multiple k6 versions - specify version parameter or defaults to latest. Use this when you need detailed documentation for a specific topic.",
+  "inputSchema": {
+    "properties": {
+      "slug": {
+        "description": "Section slug to retrieve (e.g., 'using-k6/scenarios', 'javascript-api/k6-http'). Get valid slugs from list_sections tool. Supports aliases.",
+        "type": "string"
+      },
+      "version": {
+        "description": "Optional: k6 version (e.g., 'v1.4.x', 'v0.57.x'). Defaults to latest. Use list_sections with version='all' to see available versions.",
+        "type": "string"
+      }
+    },
+    "required": [
+      "slug"
+    ],
+    "type": "object"
+  },
+  "name": "get_documentation"
+}
