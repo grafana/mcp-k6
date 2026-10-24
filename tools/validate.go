@@ -154,7 +154,7 @@ func validateK6Script(ctx context.Context, script string) (*ValidationResponse, 
 	})
 
 	// Create secure temporary file
-	tempFile, cleanup, err := createSecureTempFile(script)
+	tempFile, cleanup, err := createSecureTempFile(scriptTempFilePattern, script)
 	if err != nil {
 		logging.FileOperation(ctx, "validator", "create_temp_file", tempFile, err)
 		return &ValidationResponse{
