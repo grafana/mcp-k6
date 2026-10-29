@@ -23,7 +23,7 @@ require (
 	github.com/grpc-ecosystem/grpc-gateway/v2 v2.30.0 // indirect
 	github.com/inconshreveable/mousetrap v1.1.0 // indirect
 	github.com/klauspost/compress v1.20.1 // indirect
-	github.com/mattn/go-colorable v0.1.15 // indirect
+	github.com/mattn/go-colorable v0.1.16 // indirect
 	github.com/mattn/go-isatty v0.0.24 // indirect
 	github.com/mstoykov/atlas v0.0.0-20220811071828-388f114305dd // indirect
 	github.com/santhosh-tekuri/jsonschema/v6 v6.0.3 // indirect
