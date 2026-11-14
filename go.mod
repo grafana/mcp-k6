@@ -8,7 +8,7 @@ require (
 	github.com/sirupsen/logrus v1.10.2
 	github.com/spf13/cobra v1.10.2
 	github.com/stretchr/testify v1.12.1
-	go.k6.io/k6/v2 v2.2.0
+	go.k6.io/k6/v2 v2.3.0
 	gopkg.in/guregu/null.v3 v3.5.0
 )
 
