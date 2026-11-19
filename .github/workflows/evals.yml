@@ -1,0 +1,52 @@
+name: LLM Evals
+
+on:
+  schedule:
+    - cron: "0 0 * * *"
+  workflow_dispatch: {}
+
+permissions:
+  contents: read
+
+jobs:
+  evals:
+    if: github.event.pull_request == null || github.event.pull_request.head.repo.full_name == github.repository
+    runs-on: ubuntu-latest
+    permissions:
+      id-token: write
+      contents: read
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Setup uv
+        uses: astral-sh/setup-uv@v7
+
+      - name: Setup Go
+        uses: actions/setup-go@v6
+        with:
+          go-version-file: go.mod
+
+      - name: Setup k6
+        uses: grafana/setup-k6-action@v1
+
+      - name: Build mcp-k6
+        run: go build -o mcp-k6 ./cmd/mcp-k6
+
+      - name: Install eval dependencies
+        run: cd tests && uv sync --all-groups
+
+      - id: get-secrets
+        uses: grafana/shared-workflows/actions/get-vault-secrets@main
+        with:
+          export_env: false
+          repo_secrets: |
+            ANTHROPIC_API_KEY=anthropic:api-key
+            OPENAI_API_KEY=openai:api-key
+
+      - name: Run eval suite
+        run: cd tests && uv run pytest
+        env:
+          MCP_K6_PATH: ../mcp-k6
+          ANTHROPIC_API_KEY: ${{ fromJSON(steps.get-secrets.outputs.secrets).ANTHROPIC_API_KEY }}
+          OPENAI_API_KEY: ${{ fromJSON(steps.get-secrets.outputs.secrets).OPENAI_API_KEY }}
