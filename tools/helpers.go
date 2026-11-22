@@ -15,12 +15,15 @@ import (
 const (
 	// DefaultTimeout is the default timeout for k6 operations.
 	DefaultTimeout = 5 * time.Minute
+
+	scriptTempFilePattern  = "k6-run-*.js"
+	summaryTempFilePattern = "k6-summary-*.json"
 )
 
-// createSecureTempFile creates a secure temporary file with the script content.
-func createSecureTempFile(script string) (string, func(), error) {
+// createSecureTempFile creates a secure temporary file matching pattern with the given content.
+func createSecureTempFile(pattern, content string) (string, func(), error) {
 	//nolint:forbidigo // Temporary file creation required for k6 execution
-	tmpFile, err := os.CreateTemp("", "k6-run-*.js")
+	tmpFile, err := os.CreateTemp("", pattern)
 	if err != nil {
 		return "", nil, fmt.Errorf("failed to create temporary file: %w", err)
 	}
@@ -36,7 +39,7 @@ func createSecureTempFile(script string) (string, func(), error) {
 		}
 	}
 
-	if err := setupTempFile(tmpFile, script); err != nil {
+	if err := setupTempFile(tmpFile, content); err != nil {
 		cleanupTempFile(tmpFile)
 		return "", nil, err
 	}
@@ -47,16 +50,15 @@ func createSecureTempFile(script string) (string, func(), error) {
 // setupTempFile configures and writes to the temporary file.
 //
 //nolint:forbidigo // Function parameter os.File required for temp file operations
-func setupTempFile(tmpFile *os.File, script string) error {
+func setupTempFile(tmpFile *os.File, content string) error {
 	// Set secure permissions (owner read/write only)
 	const secureFileMode = 0o600
 	if err := tmpFile.Chmod(secureFileMode); err != nil {
 		return fmt.Errorf("failed to set secure file permissions: %w", err)
 	}
 
-	// Write script content
-	if _, err := tmpFile.WriteString(script); err != nil {
-		return fmt.Errorf("failed to write script to temporary file: %w", err)
+	if _, err := tmpFile.WriteString(content); err != nil {
+		return fmt.Errorf("failed to write to temporary file: %w", err)
 	}
 
 	if err := tmpFile.Close(); err != nil {

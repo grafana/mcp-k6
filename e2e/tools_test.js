@@ -14,6 +14,7 @@ export default function () {
   testGetDocumentationTool(client);
   testValidateScriptTool(client);
   testRunScriptTool(client);
+  testRunScriptToolReportsThresholdFailure(client);
   testSearchTerraformTool(client);
 }
 
@@ -116,6 +117,47 @@ function testRunScriptTool(client) {
   expect(data).toHaveProperty("success");
   expect(data).toHaveProperty("exit_code");
   expect(data.success).toBe(true);
+  expect(data.exit_reason).toBe("success");
+  expect(data.thresholds_failed).toBe(false);
+  expect(data).toHaveProperty("summary");
+  expect(data.summary.metrics).toHaveProperty("iterations");
+}
+
+function testRunScriptToolReportsThresholdFailure(client) {
+  const result = client.callTool({
+    name: "run_script",
+    arguments: {
+      script: `
+import { check } from 'k6';
+
+export const options = {
+  thresholds: {
+    checks: ['rate>0.5'],
+    iterations: ['count>=1'],
+  },
+};
+
+export default function() {
+  check(false, { 'always fails': (v) => v });
+}
+`,
+      iterations: 1,
+    },
+  });
+  expect(result.content.length).toBeGreaterThan(0);
+
+  const data = JSON.parse(result.content[0].text);
+  expect(data.success).toBe(false);
+  expect(data.thresholds_failed).toBe(true);
+  expect(data.exit_reason).toBe("thresholds_failed");
+  expect(data).toHaveProperty("summary");
+  expect(data.summary.checks.fails).toBe(1);
+
+  const thresholds = Object.fromEntries(
+    data.summary.thresholds.map((t) => [`${t.metric}:${t.expression}`, t.passed]),
+  );
+  expect(thresholds["checks:rate>0.5"]).toBe(false);
+  expect(thresholds["iterations:count>=1"]).toBe(true);
 }
 
 function testRunScriptToolPreservesScriptScenarios(client) {
