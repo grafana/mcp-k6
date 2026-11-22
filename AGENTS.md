@@ -17,3 +17,4 @@ Place table-driven tests in `*_test.go` next to the code they cover and use `tes
 
 ## Security & Configuration Tips
 Preserve existing security measures: respect size limits, the 50 VU cap, and secure temporary-file helpers in `internal/security`. Note new environment variables or ports in `README.md` and prefer restrictive file permissions (`0600`) when touching filesystem paths.
+- Security issues should be reported via [Grafana's security issue reporting page](https://grafana.com/legal/report-a-security-issue/) and not directly in this repository.
